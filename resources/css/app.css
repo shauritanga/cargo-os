@@ -471,6 +471,19 @@ select.sh-input { cursor: pointer; appearance: none; background-image: url("data
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* SUCCESS SCREEN ANIMATIONS */
+@keyframes successFadeIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes checkCirclePop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes checkDraw { from { stroke-dashoffset: 40; opacity: 0; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes itemSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.success-screen { animation: successFadeIn 0.25s ease both; }
+.success-check-circle { animation: checkCirclePop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.1s both; }
+.success-check-path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: checkDraw 0.35s ease 0.45s both; }
+.success-awb { animation: itemSlideUp 0.3s ease 0.55s both; }
+.success-copy-btn { animation: itemSlideUp 0.3s ease 0.65s both; }
+.success-summary { animation: itemSlideUp 0.3s ease 0.75s both; }
+
 /* RESPONSIVE */
 @media (max-width: 1100px) { .stat-grid { grid-template-columns: repeat(2,1fr); } .two-col { grid-template-columns: 1fr; } .three-col { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 700px) { .stat-grid { grid-template-columns: 1fr 1fr; } .three-col { grid-template-columns: 1fr; } }

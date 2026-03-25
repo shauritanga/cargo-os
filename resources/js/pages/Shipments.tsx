@@ -417,14 +417,6 @@ export default function Shipments() {
               <div className="dp-row"><span className="dp-key">Mode</span><span className="dp-val"><ModeIcon mode={detailShipment.mode}/>{detailShipment.mode}</span></div>
               <div className="dp-row"><span className="dp-key">ETA</span><span className="dp-val mono">{fmtDate(detailShipment.eta)}</span></div>
               <div className="dp-row"><span className="dp-key">Created</span><span className="dp-val mono">{fmtDate(detailShipment.created)}</span></div>
-              {detailShipment.type === 'international' ? <>
-                <div className="dp-row"><span className="dp-key">Vessel</span><span className="dp-val">{detailShipment.vessel||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Origin Port</span><span className="dp-val">{detailShipment.originPort||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Port of Discharge</span><span className="dp-val">{detailShipment.port||'—'}</span></div>
-              </> : <>
-                <div className="dp-row"><span className="dp-key">Distance</span><span className="dp-val">{detailShipment.distanceKm||'—'} km</span></div>
-                <div className="dp-row"><span className="dp-key">Delivery Window</span><span className="dp-val">{detailShipment.deliveryWindow||'—'}</span></div>
-              </>}
             </div>
 
             {/* Cargo */}
@@ -432,40 +424,12 @@ export default function Shipments() {
               <div className="dp-section-title">Cargo</div>
               <div className="dp-row"><span className="dp-key">Customer</span><span className="dp-val">{detailShipment.customer}</span></div>
               <div className="dp-row"><span className="dp-key">Cargo Type</span><span className="dp-val">{detailShipment.cargoType||'—'}</span></div>
+              <div className="dp-row"><span className="dp-key">Pieces</span><span className="dp-val">{detailShipment.pieces||'—'}</span></div>
               <div className="dp-row"><span className="dp-key">Weight</span><span className="dp-val">{detailShipment.weight.toLocaleString()} kg</span></div>
+              <div className="dp-row"><span className="dp-key">Contents</span><span className="dp-val" style={{ textAlign:'right',maxWidth:180 }}>{detailShipment.contents||'—'}</span></div>
               <div className="dp-row"><span className="dp-key">Declared Value</span><span className="dp-val">{detailShipment.declaredValue||'—'}</span></div>
-              {detailShipment.type === 'international' ? <>
-                <div className="dp-row"><span className="dp-key">Containers</span><span className="dp-val">{detailShipment.containers||'—'} × 20ft</span></div>
-                <div className="dp-row"><span className="dp-key">HS Code</span><span className="dp-val mono">{detailShipment.hsCode||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Incoterm</span><span className="dp-val">{detailShipment.incoterm||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Insurance</span><span className="dp-val">{detailShipment.insurance||'—'}</span></div>
-              </> : <>
-                <div className="dp-row"><span className="dp-key">Pickup Address</span><span className="dp-val" style={{ textAlign:'right',maxWidth:180 }}>{detailShipment.pickupAddress||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Delivery Address</span><span className="dp-val" style={{ textAlign:'right',maxWidth:180 }}>{detailShipment.deliveryAddress||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">POD Required</span><span className="dp-val">{detailShipment.podRequired?'Yes':'No'}</span></div>
-              </>}
+              <div className="dp-row"><span className="dp-key">Insurance</span><span className="dp-val">{detailShipment.insurance||'—'}</span></div>
             </div>
-
-            {/* Customs / Driver */}
-            {detailShipment.type === 'international' ? (
-              <div className="dp-section">
-                <div className="dp-section-title">Customs & Compliance</div>
-                <div className="dp-row"><span className="dp-key">B/L Number</span><span className="dp-val mono">{detailShipment.blNumber||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Customs Broker</span><span className="dp-val">{detailShipment.customsBroker||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Duty Amount</span><span className="dp-val">{detailShipment.dutyAmount||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Clearance</span><span className="dp-val">
-                  <Badge variant={detailShipment.status==='customs'?'customs':detailShipment.status==='delivered'?'delivered':'pending'}>
-                    {detailShipment.status==='customs'?'On Hold':detailShipment.status==='delivered'?'Cleared':'Pending'}
-                  </Badge>
-                </span></div>
-              </div>
-            ) : (
-              <div className="dp-section">
-                <div className="dp-section-title">Driver & Vehicle</div>
-                <div className="dp-row"><span className="dp-key">Driver</span><span className="dp-val">{detailShipment.driver||'—'}</span></div>
-                <div className="dp-row"><span className="dp-key">Vehicle Plate</span><span className="dp-val mono">{detailShipment.vehicle||'—'}</span></div>
-              </div>
-            )}
 
             {/* Consignor */}
             {detailShipment.consignor ? (

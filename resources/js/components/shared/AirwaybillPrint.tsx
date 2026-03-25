@@ -11,22 +11,34 @@ interface Props {
   onClose: () => void;
 }
 
-const TEAL = '#00BCD4';
-const TEAL_DARK = '#006064';
+const TEAL       = '#00BCD4';
+const TEAL_DARK  = '#006064';
 const TEAL_LIGHT = '#e0f7fa';
+const LOGO_URL   = '/logo.png';
 
-function buildPrintHtml(shipment: Shipment, companyName: string, companyAddress: string, companyPhone: string, companyEmail: string): string {
-  const con = shipment.consignor;
-  const cee = shipment.consignee;
-  const awbNo = shipment.awbNumber || shipment.id;
-  const date = fmtDate(shipment.created || new Date());
+/* ─── Print HTML builder ──────────────────────────────────────────────────── */
+function buildPrintHtml(
+  shipment: Shipment,
+  companyName: string,
+  companyAddress: string,
+  companyPhone: string,
+  companyEmail: string,
+): string {
+  const con    = shipment.consignor;
+  const cee    = shipment.consignee;
+  const awbNo  = shipment.awbNumber || shipment.id;
+  const date   = fmtDate(shipment.created || new Date());
+  const hasIns = !!(shipment.insurance && shipment.insurance !== '—');
+  const origin = window.location.origin;
+
   const fieldRow = (label: string, value: string) =>
     `<div style="display:flex;padding:3px 10px;border-bottom:1px solid #ddd;min-height:18px">
       <span style="font-size:8px;font-weight:700;color:${TEAL_DARK};text-transform:uppercase;width:90px;flex-shrink:0;padding-top:1px">${label}</span>
-      <span style="font-size:10px">${value || '—'}</span>
+      <span style="font-size:10px;color:#111">${value || '—'}</span>
     </div>`;
+
   const sectionTitle = (title: string) =>
-    `<div style="background:${TEAL};color:#fff;font-weight:700;font-size:9px;padding:3px 10px;text-transform:uppercase;letter-spacing:.5px">${title}</div>`;
+    `<div style="background:${TEAL};-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#fff;font-weight:700;font-size:9px;padding:3px 10px;text-transform:uppercase;letter-spacing:.5px">${title}</div>`;
 
   return `<!DOCTYPE html>
 <html>
@@ -35,9 +47,10 @@ function buildPrintHtml(shipment: Shipment, companyName: string, companyAddress:
   <title>Airwaybill ${awbNo}</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:Arial,sans-serif; font-size:10px; color:#000; background:#fff; }
+    body { font-family:Arial,sans-serif; font-size:10px; color:#111; background:#fff; }
     .awb { width:720px; border:2px solid #aaa; margin:10px auto; }
     @media print {
+      * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
       body { margin:0; }
       .awb { width:100%; border:2px solid #aaa; margin:0; }
       @page { margin:8mm; }
@@ -46,44 +59,44 @@ function buildPrintHtml(shipment: Shipment, companyName: string, companyAddress:
 </head>
 <body>
 <div class="awb">
+
   <!-- HEADER -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid ${TEAL}">
-    <div style="padding:10px 12px;font-size:9px;line-height:1.6;border-right:1px solid #aaa">
-      <strong style="font-size:11px">${companyName}</strong><br/>
-      ${companyAddress}<br/>
-      ${companyPhone ? `Tel: ${companyPhone}<br/>` : ''}
-      ${companyEmail ? `Email: ${companyEmail}` : ''}
+    <!-- Company info -->
+    <div style="padding:10px 12px;font-size:9px;line-height:1.6;border-right:1px solid #aaa;background:#f9f9f9">
+      <strong style="font-size:11px;color:#111">${companyName}</strong><br/>
+      <span style="color:#555">${companyAddress}</span><br/>
+      ${companyPhone ? `<span style="color:#555">Tel: ${companyPhone}</span><br/>` : ''}
+      ${companyEmail ? `<span style="color:#555">Email: ${companyEmail}</span>` : ''}
     </div>
-    <div style="padding:10px 12px;text-align:center;border-right:1px solid #aaa">
-      <div style="font-weight:700;font-size:14px;color:#000;letter-spacing:1px">Airwaybill</div>
-      <div style="font-family:'Courier New',monospace;font-size:9px;letter-spacing:3px;margin:5px 0;color:#555">||||||||||||||||||||||||||||||||</div>
-      <div style="font-weight:700;font-size:20px;letter-spacing:2px">${awbNo}</div>
+    <!-- AWB centre -->
+    <div style="padding:10px 12px;text-align:center;border-right:1px solid #aaa;background:#f9f9f9">
+      <div style="font-weight:700;font-size:13px;color:${TEAL_DARK};letter-spacing:1px">Airwaybill</div>
+      <div style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:3px;margin:4px 0;color:#aaa">||||||||||||||||||||||||||||||||</div>
+      <div style="font-weight:700;font-size:20px;letter-spacing:2px;color:#111">${awbNo}</div>
     </div>
-    <div style="padding:10px 12px;background:${TEAL};display:flex;flex-direction:column;justify-content:center;align-items:flex-end">
-      <div style="font-size:22px;font-weight:900;color:#fff;letter-spacing:1px">${companyName}</div>
-      <div style="font-size:9px;color:rgba(255,255,255,.9);margin-top:4px">www.rtexpress.co.tz</div>
-      <div style="font-size:9px;color:rgba(255,255,255,.9)">info@rtexpress.co.tz</div>
+    <!-- Logo / brand top-right -->
+    <div style="padding:10px 14px;background:${TEAL};-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column;justify-content:center;align-items:flex-end">
+      <img src="${origin}${LOGO_URL}" alt="${companyName}" style="height:36px;max-width:130px;object-fit:contain;margin-bottom:5px" onerror="this.style.display='none';document.getElementById('fallback-name').style.display='block'"/>
+      <div id="fallback-name" style="display:none;font-size:20px;font-weight:900;color:#fff;letter-spacing:1px">${companyName}</div>
+      <div style="font-size:8.5px;color:rgba(255,255,255,.9)">www.rtexpress.co.tz</div>
+      <div style="font-size:8.5px;color:rgba(255,255,255,.9)">info@rtexpress.co.tz</div>
     </div>
   </div>
 
   <!-- ROUTE BAR -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;background:${TEAL_LIGHT};border-bottom:1px solid #aaa">
-    <div style="padding:4px 10px;border-right:1px solid #aaa">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:${TEAL_DARK}">Account No</div>
-      <div style="font-size:10px;min-height:14px"></div>
-    </div>
-    <div style="padding:4px 10px;border-right:1px solid #aaa">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:${TEAL_DARK}">From</div>
-      <div style="font-size:10px">${shipment.origin}</div>
-    </div>
-    <div style="padding:4px 10px;border-right:1px solid #aaa">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:${TEAL_DARK}">To</div>
-      <div style="font-size:10px">${shipment.dest}</div>
-    </div>
-    <div style="padding:4px 10px">
-      <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:${TEAL_DARK}">Date</div>
-      <div style="font-size:10px">${date}</div>
-    </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;background:${TEAL_LIGHT};-webkit-print-color-adjust:exact;print-color-adjust:exact;border-bottom:1px solid #aaa">
+    ${[
+      { label: 'Account No', value: '' },
+      { label: 'From',       value: shipment.origin },
+      { label: 'To',         value: shipment.dest },
+      { label: 'Date',       value: date },
+    ].map((item, i) =>
+      `<div style="padding:4px 10px;${i < 3 ? 'border-right:1px solid #aaa;' : ''}">
+        <div style="font-size:8px;font-weight:700;text-transform:uppercase;color:${TEAL_DARK}">${item.label}</div>
+        <div style="font-size:10px;color:#111">${item.value || ''}</div>
+      </div>`
+    ).join('')}
   </div>
 
   <!-- CONSIGNOR + CARGO RIGHT -->
@@ -98,36 +111,38 @@ function buildPrintHtml(shipment: Shipment, companyName: string, companyAddress:
         ['Tel', con.tel],
         ['Name', con.contactName],
         ['Email', con.email],
-      ].map(([l, v]) => fieldRow(l, v)).join('') : '<div style="padding:8px 10px;font-size:10px;color:#888">No consignor details</div>'}
+      ].map(([l, v]) => fieldRow(l, v)).join('')
+        : '<div style="padding:8px 10px;font-size:10px;color:#888">No consignor details</div>'}
     </div>
     <div>
-      <!-- Pieces & Weight -->
       <div style="border-bottom:1px solid #aaa">
         ${sectionTitle('Pieces &amp; Weight')}
         <div style="display:grid;grid-template-columns:1fr 1fr">
           <div style="padding:5px 8px;border-right:1px solid #aaa">
             <div style="font-size:8px;font-weight:700;color:${TEAL_DARK};text-transform:uppercase">Pieces</div>
-            <div style="font-weight:700;font-size:12px">${shipment.pieces || '—'}</div>
+            <div style="font-weight:700;font-size:12px;color:#111">${shipment.pieces || '—'}</div>
           </div>
           <div style="padding:5px 8px">
             <div style="font-size:8px;font-weight:700;color:${TEAL_DARK};text-transform:uppercase">Weight</div>
-            <div style="font-weight:700;font-size:12px">${shipment.weight ? shipment.weight.toLocaleString() + ' kg' : '—'}</div>
+            <div style="font-weight:700;font-size:12px;color:#111">${shipment.weight ? shipment.weight.toLocaleString() + ' kg' : '—'}</div>
           </div>
         </div>
       </div>
-      <!-- Contents -->
       <div style="border-bottom:1px solid #aaa">
         ${sectionTitle('Contents')}
-        <div style="padding:5px 8px;font-size:10px;min-height:30px">${shipment.contents || '—'}</div>
+        <div style="padding:5px 8px;font-size:10px;color:#111;min-height:30px">${shipment.contents || '—'}</div>
       </div>
-      <!-- Dimensions -->
       <div>
         ${sectionTitle('Dimensions')}
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:${TEAL_LIGHT}">
-          ${['Length', 'Width', 'Height'].map((d, i) => `<div style="padding:2px 6px;${i < 2 ? 'border-right:1px solid #aaa;' : ''}text-align:center;font-size:8px;font-weight:700;color:${TEAL_DARK}">${d}</div>`).join('')}
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:${TEAL_LIGHT};-webkit-print-color-adjust:exact;print-color-adjust:exact">
+          ${['L', 'W', 'H'].map((d, i) =>
+            `<div style="padding:2px 6px;${i < 2 ? 'border-right:1px solid #aaa;' : ''}text-align:center;font-size:8px;font-weight:700;color:${TEAL_DARK}">${d}</div>`
+          ).join('')}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;min-height:22px">
-          ${[0, 1, 2].map(i => `<div style="padding:3px 6px;${i < 2 ? 'border-right:1px solid #aaa;' : ''}"></div>`).join('')}
+          ${[0, 1, 2].map(i =>
+            `<div style="padding:3px 6px;${i < 2 ? 'border-right:1px solid #aaa;' : ''}"></div>`
+          ).join('')}
         </div>
       </div>
     </div>
@@ -145,31 +160,33 @@ function buildPrintHtml(shipment: Shipment, companyName: string, companyAddress:
         ['Name', cee.contactName],
         ['Tel', cee.tel],
         ['Email', cee.email],
-      ].map(([l, v]) => fieldRow(l, v)).join('') : '<div style="padding:8px 10px;font-size:10px;color:#888">No consignee details</div>'}
+      ].map(([l, v]) => fieldRow(l, v)).join('')
+        : '<div style="padding:8px 10px;font-size:10px;color:#888">No consignee details</div>'}
     </div>
     <div>
       <div style="border-bottom:1px solid #aaa">
         ${sectionTitle('Special Instructions')}
-        <div style="padding:5px 8px;font-size:10px;min-height:40px">${shipment.notes || '—'}</div>
+        <div style="padding:5px 8px;font-size:10px;color:#111;min-height:40px">${shipment.notes || '—'}</div>
       </div>
       <div style="border-bottom:1px solid #aaa">
         ${sectionTitle('Declared Value')}
-        <div style="padding:5px 8px;font-size:10px">${shipment.declaredValue || '—'}</div>
+        <div style="padding:5px 8px;font-size:10px;color:#111">${shipment.declaredValue || '—'}</div>
       </div>
       <div>
         ${sectionTitle('Insurance')}
-        <div style="padding:5px 8px;font-size:10px">
-          <span style="margin-right:14px">YES ☐</span><span>NO ☑</span>
+        <div style="padding:5px 8px;font-size:10px;color:#111">
+          <span style="margin-right:14px">YES ${hasIns ? '☑' : '☐'}</span>
+          <span>NO ${hasIns ? '☐' : '☑'}</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- RECEIVED SECTIONS -->
+  <!-- RECEIVED -->
   <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #aaa">
     ${['Received by RT Express', 'Received by Consignee'].map((title, bi) =>
       `<div style="padding:6px 10px;${bi === 0 ? 'border-right:1px solid #aaa;' : ''}">
-        <div style="background:${TEAL};color:#fff;font-weight:700;font-size:8px;padding:2px 6px;margin-bottom:6px;text-transform:uppercase">${title}</div>
+        <div style="background:${TEAL};-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#fff;font-weight:700;font-size:8px;padding:2px 6px;margin-bottom:6px;text-transform:uppercase">${title}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
           ${['Date', 'Time', 'Name'].map(col =>
             `<div>
@@ -183,22 +200,23 @@ function buildPrintHtml(shipment: Shipment, companyName: string, companyAddress:
   </div>
 
   <!-- FOOTER -->
-  <div style="background:${TEAL};text-align:center;padding:6px">
+  <div style="background:${TEAL};-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:center;padding:6px">
     <div style="font-size:9px;color:#fff;font-style:italic">RT Express terms and conditions strictly apply, which is available on request</div>
     <div style="font-size:11px;font-weight:700;color:#fff;margin-top:2px">On Time, The First Time</div>
   </div>
+
 </div>
 <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}</script>
 </body>
 </html>`;
 }
 
-// ─── Preview Row Helper ───────────────────────────────────────────────────────
+/* ─── Preview helpers ─────────────────────────────────────────────────────── */
 function PreviewFieldRow({ label, value }: { label: string; value?: string }) {
   return (
-    <div style={{ display: 'flex', padding: '3px 10px', borderBottom: '1px solid var(--border)', minHeight: 20 }}>
+    <div style={{ display: 'flex', padding: '3px 10px', borderBottom: '1px solid #ddd', minHeight: 20 }}>
       <span style={{ fontSize: 8, fontWeight: 700, color: TEAL_DARK, textTransform: 'uppercase', width: 88, flexShrink: 0, paddingTop: 1 }}>{label}</span>
-      <span style={{ fontSize: 10, color: 'var(--text-1)' }}>{value || '—'}</span>
+      <span style={{ fontSize: 10, color: '#111' }}>{value || '—'}</span>
     </div>
   );
 }
@@ -211,22 +229,22 @@ function PreviewSectionTitle({ title }: { title: string }) {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+/* ─── Main component ──────────────────────────────────────────────────────── */
 export default function AirwaybillPrint({ shipment, companyName, companyAddress = '', companyPhone = '', companyEmail = '', onClose }: Props) {
-  const con = shipment.consignor;
-  const cee = shipment.consignee;
-  const awbNo = shipment.awbNumber || shipment.id;
+  const con    = shipment.consignor;
+  const cee    = shipment.consignee;
+  const awbNo  = shipment.awbNumber || shipment.id;
+  const hasIns = !!(shipment.insurance && shipment.insurance !== '—');
+  const border = '1px solid #ddd';
 
   const handlePrint = () => {
     const html = buildPrintHtml(shipment, companyName, companyAddress, companyPhone, companyEmail);
-    const w = window.open('', '_blank', 'width=850,height=720,scrollbars=yes');
+    const w = window.open('', '_blank', 'width=860,height=740,scrollbars=yes');
     if (!w) { alert('Please allow pop-ups to print the airwaybill.'); return; }
     w.document.write(html);
     w.document.close();
     w.focus();
   };
-
-  const borderSt = '1px solid var(--border)';
 
   return (
     <div className="modal-overlay open" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -247,113 +265,130 @@ export default function AirwaybillPrint({ shipment, companyName, companyAddress 
         </div>
 
         <div className="modal-body">
-          <div style={{ border: '2px solid var(--border-strong)', borderRadius: 6, overflow: 'hidden', fontSize: 11, background: 'white', color: '#000' }}>
+          <div style={{ border: '2px solid #aaa', borderRadius: 4, overflow: 'hidden', fontSize: 11, background: '#fff', color: '#111' }}>
 
             {/* HEADER */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: `2px solid ${TEAL}` }}>
-              <div style={{ padding: '10px 12px', fontSize: 9, lineHeight: 1.6, borderRight: borderSt, background: '#f9f9f9' }}>
-                <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2 }}>{companyName}</div>
+              {/* Company info */}
+              <div style={{ padding: '10px 12px', fontSize: 9, lineHeight: 1.6, borderRight: border, background: '#f9f9f9' }}>
+                <div style={{ fontWeight: 700, fontSize: 11, color: '#111', marginBottom: 2 }}>{companyName}</div>
                 <div style={{ color: '#555' }}>{companyAddress}</div>
                 {companyPhone && <div style={{ color: '#555' }}>Tel: {companyPhone}</div>}
                 {companyEmail && <div style={{ color: '#555' }}>Email: {companyEmail}</div>}
               </div>
-              <div style={{ padding: '10px 12px', textAlign: 'center', borderRight: borderSt, background: '#f9f9f9' }}>
+              {/* AWB centre */}
+              <div style={{ padding: '10px 12px', textAlign: 'center', borderRight: border, background: '#f9f9f9' }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: TEAL_DARK }}>Airwaybill</div>
-                <div style={{ fontFamily: 'monospace', letterSpacing: 2, fontSize: 9, color: '#999', margin: '5px 0' }}>||||||||||||||||||||||||||||||||</div>
-                <div style={{ fontWeight: 700, fontSize: 17, letterSpacing: 2, color: '#000' }}>{awbNo}</div>
+                <div style={{ fontFamily: 'monospace', letterSpacing: 2, fontSize: 9, color: '#bbb', margin: '4px 0' }}>||||||||||||||||||||||||||||||||</div>
+                <div style={{ fontWeight: 700, fontSize: 17, letterSpacing: 2, color: '#111' }}>{awbNo}</div>
               </div>
-              <div style={{ padding: '10px 12px', background: TEAL, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
-                <div style={{ fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: 1 }}>{companyName}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.9)', marginTop: 3 }}>www.rtexpress.co.tz</div>
+              {/* Logo — top-right teal */}
+              <div style={{ padding: '10px 14px', background: TEAL, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
+                <img
+                  src={LOGO_URL}
+                  alt={companyName}
+                  style={{ height: 36, maxWidth: 130, objectFit: 'contain', marginBottom: 5 }}
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement).style.display = 'block'; }}
+                />
+                <div style={{ display: 'none', fontWeight: 900, fontSize: 18, color: '#fff', letterSpacing: 1 }}>{companyName}</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,.9)', marginTop: 2 }}>www.rtexpress.co.tz</div>
                 <div style={{ fontSize: 9, color: 'rgba(255,255,255,.9)' }}>info@rtexpress.co.tz</div>
               </div>
             </div>
 
             {/* ROUTE BAR */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: TEAL_LIGHT, borderBottom: borderSt }}>
-              {[{ label: 'Account No', value: '' }, { label: 'From', value: shipment.origin }, { label: 'To', value: shipment.dest }, { label: 'Date', value: fmtDate(shipment.created || new Date()) }].map((item, i) => (
-                <div key={i} style={{ padding: '4px 10px', borderRight: i < 3 ? borderSt : 'none' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', background: TEAL_LIGHT, borderBottom: border }}>
+              {[
+                { label: 'Account No', value: '' },
+                { label: 'From',       value: shipment.origin },
+                { label: 'To',         value: shipment.dest },
+                { label: 'Date',       value: fmtDate(shipment.created || new Date()) },
+              ].map((item, i) => (
+                <div key={i} style={{ padding: '4px 10px', borderRight: i < 3 ? border : 'none' }}>
                   <div style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase', color: TEAL_DARK }}>{item.label}</div>
-                  <div style={{ fontSize: 10 }}>{item.value}</div>
+                  <div style={{ fontSize: 10, color: '#111' }}>{item.value}</div>
                 </div>
               ))}
             </div>
 
             {/* CONSIGNOR + CARGO */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px', borderBottom: borderSt }}>
-              <div style={{ borderRight: borderSt }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px', borderBottom: border }}>
+              <div style={{ borderRight: border }}>
                 <PreviewSectionTitle title="Consignor (Sender)" />
-                {con ? [['Company Name', con.companyName], ['Street Address', con.streetAddress], ['City / Town', con.cityTown], ['Country', con.country], ['Tel', con.tel], ['Name', con.contactName], ['Email', con.email]].map(([l, v]) => (
-                  <PreviewFieldRow key={l} label={l} value={v} />
-                )) : <div style={{ padding: '8px 10px', fontSize: 10, color: '#888' }}>No consignor details</div>}
+                {con
+                  ? [['Company Name', con.companyName], ['Street Address', con.streetAddress], ['City / Town', con.cityTown], ['Country', con.country], ['Tel', con.tel], ['Name', con.contactName], ['Email', con.email]]
+                      .map(([l, v]) => <PreviewFieldRow key={l} label={l} value={v} />)
+                  : <div style={{ padding: '8px 10px', fontSize: 10, color: '#888' }}>No consignor details</div>}
               </div>
               <div>
-                <div style={{ borderBottom: borderSt }}>
+                <div style={{ borderBottom: border }}>
                   <PreviewSectionTitle title="Pieces & Weight" />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-                    <div style={{ padding: '5px 8px', borderRight: borderSt }}>
+                    <div style={{ padding: '5px 8px', borderRight: border }}>
                       <div style={{ fontSize: 8, fontWeight: 700, color: TEAL_DARK, textTransform: 'uppercase' }}>Pieces</div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{shipment.pieces || '—'}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#111' }}>{shipment.pieces || '—'}</div>
                     </div>
                     <div style={{ padding: '5px 8px' }}>
                       <div style={{ fontSize: 8, fontWeight: 700, color: TEAL_DARK, textTransform: 'uppercase' }}>Weight</div>
-                      <div style={{ fontWeight: 700, fontSize: 11 }}>{shipment.weight ? shipment.weight.toLocaleString() + ' kg' : '—'}</div>
+                      <div style={{ fontWeight: 700, fontSize: 11, color: '#111' }}>{shipment.weight ? shipment.weight.toLocaleString() + ' kg' : '—'}</div>
                     </div>
                   </div>
                 </div>
-                <div style={{ borderBottom: borderSt }}>
+                <div style={{ borderBottom: border }}>
                   <PreviewSectionTitle title="Contents" />
-                  <div style={{ padding: '5px 8px', fontSize: 10, minHeight: 30 }}>{shipment.contents || '—'}</div>
+                  <div style={{ padding: '5px 8px', fontSize: 10, color: '#111', minHeight: 30 }}>{shipment.contents || '—'}</div>
                 </div>
                 <div>
                   <PreviewSectionTitle title="Dimensions" />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: TEAL_LIGHT }}>
                     {['L', 'W', 'H'].map((d, i) => (
-                      <div key={d} style={{ padding: '2px 6px', borderRight: i < 2 ? borderSt : 'none', textAlign: 'center', fontSize: 8, fontWeight: 700, color: TEAL_DARK }}>{d}</div>
+                      <div key={d} style={{ padding: '2px 6px', borderRight: i < 2 ? border : 'none', textAlign: 'center', fontSize: 8, fontWeight: 700, color: TEAL_DARK }}>{d}</div>
                     ))}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', minHeight: 20 }}>
-                    {[0, 1, 2].map(i => <div key={i} style={{ padding: '3px 6px', borderRight: i < 2 ? borderSt : 'none' }} />)}
+                    {[0, 1, 2].map(i => <div key={i} style={{ padding: '3px 6px', borderRight: i < 2 ? border : 'none' }} />)}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* CONSIGNEE + SPECIAL */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px', borderBottom: borderSt }}>
-              <div style={{ borderRight: borderSt }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 190px', borderBottom: border }}>
+              <div style={{ borderRight: border }}>
                 <PreviewSectionTitle title="Consignee (Recipient)" />
-                {cee ? [['Company Name', cee.companyName], ['Street Address', cee.streetAddress], ['City / Town', cee.cityTown], ['Country', cee.country], ['Name', cee.contactName], ['Tel', cee.tel], ['Email', cee.email]].map(([l, v]) => (
-                  <PreviewFieldRow key={l} label={l} value={v} />
-                )) : <div style={{ padding: '8px 10px', fontSize: 10, color: '#888' }}>No consignee details</div>}
+                {cee
+                  ? [['Company Name', cee.companyName], ['Street Address', cee.streetAddress], ['City / Town', cee.cityTown], ['Country', cee.country], ['Name', cee.contactName], ['Tel', cee.tel], ['Email', cee.email]]
+                      .map(([l, v]) => <PreviewFieldRow key={l} label={l} value={v} />)
+                  : <div style={{ padding: '8px 10px', fontSize: 10, color: '#888' }}>No consignee details</div>}
               </div>
               <div>
-                <div style={{ borderBottom: borderSt }}>
+                <div style={{ borderBottom: border }}>
                   <PreviewSectionTitle title="Special Instructions" />
-                  <div style={{ padding: '5px 8px', fontSize: 10, minHeight: 40 }}>{shipment.notes || '—'}</div>
+                  <div style={{ padding: '5px 8px', fontSize: 10, color: '#111', minHeight: 40 }}>{shipment.notes || '—'}</div>
                 </div>
-                <div style={{ borderBottom: borderSt }}>
+                <div style={{ borderBottom: border }}>
                   <PreviewSectionTitle title="Declared Value" />
-                  <div style={{ padding: '5px 8px', fontSize: 10 }}>{shipment.declaredValue || '—'}</div>
+                  <div style={{ padding: '5px 8px', fontSize: 10, color: '#111' }}>{shipment.declaredValue || '—'}</div>
                 </div>
                 <div>
                   <PreviewSectionTitle title="Insurance" />
-                  <div style={{ padding: '5px 8px', fontSize: 10 }}>
-                    <span style={{ marginRight: 12 }}>YES ☐</span><span>NO ☑</span>
+                  <div style={{ padding: '5px 8px', fontSize: 10, color: '#111' }}>
+                    <span style={{ marginRight: 12 }}>YES {hasIns ? '☑' : '☐'}</span>
+                    <span>NO {hasIns ? '☐' : '☑'}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* RECEIVED */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: borderSt }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: border }}>
               {['Received by RT Express', 'Received by Consignee'].map((title, bi) => (
-                <div key={bi} style={{ padding: '6px 10px', borderRight: bi === 0 ? borderSt : 'none' }}>
+                <div key={bi} style={{ padding: '6px 10px', borderRight: bi === 0 ? border : 'none' }}>
                   <div style={{ background: TEAL, color: '#fff', fontWeight: 700, fontSize: 8, padding: '2px 6px', marginBottom: 6, textTransform: 'uppercase' }}>{title}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                     {['Date', 'Time', 'Name'].map(col => (
                       <div key={col}>
-                        <div style={{ fontSize: 8, fontWeight: 700, color: TEAL_DARK, textTransform: 'uppercase', borderBottom: `1px solid #ccc`, paddingBottom: 2 }}>{col}</div>
+                        <div style={{ fontSize: 8, fontWeight: 700, color: TEAL_DARK, textTransform: 'uppercase', borderBottom: '1px solid #ccc', paddingBottom: 2 }}>{col}</div>
                         <div style={{ minHeight: 18 }} />
                       </div>
                     ))}
@@ -367,6 +402,7 @@ export default function AirwaybillPrint({ shipment, companyName, companyAddress 
               <div style={{ fontSize: 9, color: '#fff', fontStyle: 'italic' }}>RT Express terms and conditions strictly apply, which is available on request</div>
               <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', marginTop: 2 }}>On Time, The First Time</div>
             </div>
+
           </div>
         </div>
       </div>

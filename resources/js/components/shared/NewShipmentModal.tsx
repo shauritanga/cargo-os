@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import SearchableSelect from './SearchableSelect';
+import AirwaybillPrint from './AirwaybillPrint';
 import { TZ_REGIONS } from '../../data/mock';
 import type { Shipment, Party } from '../../types';
 
@@ -99,7 +100,7 @@ function PartyFields({ title, value, onChange, countryOptions }: {
 }
 
 export default function NewShipmentModal({ onClose }: Props) {
-  const { setShipments, showToast, setActivePage } = useApp();
+  const { setShipments, showToast, setActivePage, companySettings } = useApp();
   const [formType, setFormType] = useState<'international' | 'domestic'>('international');
   const [originCountry, setOriginCountry] = useState('');
   const [destCountry, setDestCountry] = useState('');
@@ -142,7 +143,17 @@ export default function NewShipmentModal({ onClose }: Props) {
   const [consignee, setConsignee] = useState<Party>(emptyParty());
 
   const [submitting, setSubmitting] = useState(false);
+  const [successShipment, setSuccessShipment] = useState<Shipment | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
   const cityToOption = (c: string) => ({ label: c, value: c });
+
+  function copyAwb(awb: string) {
+    navigator.clipboard.writeText(awb).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   const handleSubmit = async () => {
     if (!origin || !dest || !consignor.companyName) {
@@ -217,9 +228,8 @@ export default function NewShipmentModal({ onClose }: Props) {
       };
 
       setShipments(prev => [newShipment, ...prev]);
-      showToast(`Shipment ${saved.awb_number} created`, 'green');
       setActivePage('shipments');
-      onClose();
+      setSuccessShipment(newShipment);
     } catch (err: any) {
       showToast(err.message || 'Error creating shipment', 'red');
     } finally {
@@ -227,17 +237,104 @@ export default function NewShipmentModal({ onClose }: Props) {
     }
   };
 
+  if (showPrint && successShipment) {
+    return (
+      <AirwaybillPrint
+        shipment={successShipment}
+        companyName={companySettings.name}
+        companyAddress={companySettings.address}
+        onClose={() => setShowPrint(false)}
+      />
+    );
+  }
+
   return (
     <div className="modal-overlay open" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ width: 640, maxHeight: '92vh' }}>
-        <div className="modal-header">
-          <span className="modal-title">New Shipment</span>
+      <div className="modal" style={{ width: successShipment ? 360 : 640, maxHeight: '92vh', transition: 'width 0.25s ease' }}>
+        <div className="modal-header" style={{ padding: successShipment ? '12px 16px' : undefined }}>
+          <span className="modal-title" style={{ fontSize: successShipment ? 13 : undefined }}>
+            {successShipment ? 'Shipment Confirmed' : 'New Shipment'}
+          </span>
           <button className="modal-close" onClick={onClose}>
             <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M1 1l11 11M12 1L1 12"/></svg>
           </button>
         </div>
 
-        <div className="modal-body">
+        {/* SUCCESS SCREEN */}
+        {successShipment && (
+          <>
+            <div className="modal-body success-screen" style={{ padding: '20px 20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+
+              {/* Animated check circle */}
+              <div className="success-check-circle" style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--green-dim)', display: 'grid', placeItems: 'center', marginBottom: 10 }}>
+                <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+                  <path className="success-check-path" d="M20 6L9 17l-5-5" stroke="var(--green)" strokeWidth="2.5" />
+                </svg>
+              </div>
+
+              {/* Label */}
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Shipment Created</div>
+
+              {/* AWB Number */}
+              <div className="success-awb" style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-1)', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                  {successShipment.awbNumber}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>Airwaybill Number</div>
+              </div>
+
+              {/* Copy button */}
+              <button className="btn primary success-copy-btn" style={{ gap: 6, marginBottom: 14, fontSize: 11, padding: '6px 14px' }} onClick={() => copyAwb(successShipment.awbNumber ?? '')}>
+                {copied ? (
+                  <><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" style={{ width: 11, height: 11 }}><path d="M2 8l4 4 8-8"/></svg>Copied!</>
+                ) : (
+                  <><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ width: 11, height: 11 }}><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2"/></svg>Copy AWB</>
+                )}
+              </button>
+
+              {/* Summary card */}
+              <div className="success-summary" style={{ width: '100%', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', textAlign: 'left' }}>
+                {/* From → To */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 1 }}>From</div>
+                    <div style={{ fontWeight: 600, fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{successShipment.consignor?.companyName || successShipment.customer}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{successShipment.origin}</div>
+                  </div>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round" style={{ width: 13, height: 13, flexShrink: 0 }}><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', marginBottom: 1 }}>To</div>
+                    <div style={{ fontWeight: 600, fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{successShipment.consignee?.companyName || '—'}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{successShipment.dest}</div>
+                  </div>
+                </div>
+                {/* Stats row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                  {[
+                    { label: 'Mode',   value: successShipment.mode },
+                    { label: 'Pieces', value: successShipment.pieces ?? '—' },
+                    { label: 'Weight', value: successShipment.weight ? `${successShipment.weight} kg` : '—' },
+                  ].map(item => (
+                    <div key={item.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: 'var(--text-3)' }}>{item.label}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', marginTop: 1 }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ padding: '10px 16px' }}>
+              <button className="btn" style={{ fontSize: 12, padding: '6px 14px' }} onClick={onClose}>Close</button>
+              <button className="btn primary" style={{ fontSize: 12, padding: '6px 14px', gap: 6 }} onClick={() => setShowPrint(true)}>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ width: 12, height: 12 }}><path d="M4 6V2h8v4"/><rect x="2" y="6" width="12" height="7" rx="1"/><path d="M4 10h8M4 13h5"/></svg>
+                Print Airwaybill
+              </button>
+            </div>
+          </>
+        )}
+
+        <div className="modal-body" style={{ display: successShipment ? 'none' : undefined }}>
           {/* TYPE TOGGLE */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
             <button
@@ -404,12 +501,14 @@ export default function NewShipmentModal({ onClose }: Props) {
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="btn" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button className="btn primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create Shipment'}
-          </button>
-        </div>
+        {!successShipment && (
+          <div className="modal-footer">
+            <button className="btn" onClick={onClose} disabled={submitting}>Cancel</button>
+            <button className="btn primary" onClick={handleSubmit} disabled={submitting}>
+              {submitting ? 'Creating…' : 'Create Shipment'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
