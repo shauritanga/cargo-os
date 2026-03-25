@@ -230,17 +230,7 @@ class Mailable implements MailableContract, Renderable
 
         $connection = property_exists($this, 'connection') ? $this->connection : null;
 
-        if (is_null($connection) && method_exists($queue, 'resolveConnectionFromQueueRoute')) {
-            $connection = $queue->resolveConnectionFromQueueRoute($this);
-        }
-
-        $queueName = property_exists($this, 'queue')
-            ? $this->queue
-            : null;
-
-        if (is_null($queueName) && method_exists($queue, 'resolveQueueFromQueueRoute')) {
-            $queueName = $queue->resolveQueueFromQueueRoute($this);
-        }
+        $queueName = property_exists($this, 'queue') ? $this->queue : null;
 
         return $queue->connection($connection)->pushOn(
             $queueName ?: null, $this->newQueuedJob()
@@ -258,17 +248,7 @@ class Mailable implements MailableContract, Renderable
     {
         $connection = property_exists($this, 'connection') ? $this->connection : null;
 
-        $queueName = property_exists($this, 'queue')
-            ? $this->queue
-            : null;
-
-        if (is_null($connection) && method_exists($queue, 'resolveConnectionFromQueueRoute')) {
-            $connection = $queue->resolveConnectionFromQueueRoute($this);
-        }
-
-        if (is_null($queueName) && method_exists($queue, 'resolveQueueFromQueueRoute')) {
-            $queueName = $queue->resolveQueueFromQueueRoute($this);
-        }
+        $queueName = property_exists($this, 'queue') ? $this->queue : null;
 
         $job = $this->newQueuedJob();
 

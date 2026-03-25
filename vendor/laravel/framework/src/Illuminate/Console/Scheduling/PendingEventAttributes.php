@@ -69,10 +69,6 @@ class PendingEventAttributes
             $event->evenInMaintenanceMode();
         }
 
-        if ($this->evenWhenPaused) {
-            $event->evenWhenPaused();
-        }
-
         if ($this->withoutOverlapping) {
             $event->withoutOverlapping($this->expiresAt);
         }

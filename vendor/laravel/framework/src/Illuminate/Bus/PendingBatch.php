@@ -94,8 +94,6 @@ class PendingBatch
      *
      * @param  object|array  $job
      * @return void
-     *
-     * @throws \RuntimeException
      */
     protected function ensureJobIsBatchable(object|array $job): void
     {

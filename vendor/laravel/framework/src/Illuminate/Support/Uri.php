@@ -390,15 +390,7 @@ class Uri implements Htmlable, JsonSerializable, Responsable, Stringable
      */
     public function value(): string
     {
-        return $this->toString();
-    }
-
-    /**
-     * Get the string representation of the URI.
-     */
-    public function toString(): string
-    {
-        return $this->uri->toString();
+        return (string) $this;
     }
 
     /**
@@ -453,6 +445,6 @@ class Uri implements Htmlable, JsonSerializable, Responsable, Stringable
      */
     public function __toString(): string
     {
-        return $this->toString();
+        return $this->uri->toString();
     }
 }

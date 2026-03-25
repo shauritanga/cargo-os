@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Log\Context\Repository as ContextRepository;
 use Illuminate\Pipeline\Pipeline;
+use Illuminate\Queue\Attributes\DeleteWhenMissingModels;
+use ReflectionClass;
 use RuntimeException;
 
 class CallQueuedHandler
@@ -244,10 +246,21 @@ class CallQueuedHandler
      */
     protected function handleModelNotFound(Job $job, $e)
     {
+        $class = $job->resolveQueuedJobClass();
+
+        try {
+            $reflectionClass = new ReflectionClass($class);
+
+            $shouldDelete = $reflectionClass->getDefaultProperties()['deleteWhenMissingModels']
+                ?? count($reflectionClass->getAttributes(DeleteWhenMissingModels::class)) !== 0;
+        } catch (Exception) {
+            $shouldDelete = false;
+        }
+
         $this->ensureUniqueJobLockIsReleasedViaContext();
 
-        if ($job->payload()['deleteWhenMissingModels'] ?? false) {
-            $this->ensureSuccessfulBatchJobIsRecordedForMissingModel($job, $job->resolveQueuedJobClass());
+        if ($shouldDelete) {
+            $this->ensureSuccessfulBatchJobIsRecordedForMissingModel($job, $class);
 
             return $job->delete();
         }

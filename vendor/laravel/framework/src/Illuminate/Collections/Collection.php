@@ -509,9 +509,19 @@ class Collection implements ArrayAccess, CanBeEscapedWhenCastToString, Enumerabl
     }
 
     /**
-     * {@inheritDoc}
+     * Group an associative array by a field or using a callback.
+     *
+     * @template TGroupKey of array-key|\UnitEnum|\Stringable
+     *
+     * @param  (callable(TValue, TKey): TGroupKey)|array|string  $groupBy
+     * @param  bool  $preserveKeys
+     * @return static<
+     *  ($groupBy is (array|string)
+     *      ? array-key
+     *      : (TGroupKey is \UnitEnum ? array-key : (TGroupKey is \Stringable ? string : TGroupKey))),
+     *  static<($preserveKeys is true ? TKey : int), ($groupBy is array ? mixed : TValue)>
+     * >
      */
-    #[\Override]
     public function groupBy($groupBy, $preserveKeys = false)
     {
         if (! $this->useAsCallable($groupBy) && is_array($groupBy)) {
@@ -557,9 +567,13 @@ class Collection implements ArrayAccess, CanBeEscapedWhenCastToString, Enumerabl
     }
 
     /**
-     * {@inheritDoc}
+     * Key an associative array by a field or using a callback.
+     *
+     * @template TNewKey of array-key|\UnitEnum
+     *
+     * @param  (callable(TValue, TKey): TNewKey)|array|string  $keyBy
+     * @return static<($keyBy is (array|string) ? array-key : (TNewKey is \UnitEnum ? array-key : TNewKey)), TValue>
      */
-    #[\Override]
     public function keyBy($keyBy)
     {
         $keyBy = $this->valueRetriever($keyBy);
@@ -1903,9 +1917,11 @@ class Collection implements ArrayAccess, CanBeEscapedWhenCastToString, Enumerabl
     }
 
     /**
-     * {@inheritDoc}
+     * Count the number of items in the collection by a field or using a callback.
+     *
+     * @param  (callable(TValue, TKey): (array-key|\UnitEnum))|string|null  $countBy
+     * @return static<array-key, int>
      */
-    #[\Override]
     public function countBy($countBy = null)
     {
         return new static($this->lazy()->countBy($countBy)->all());
@@ -1937,49 +1953,49 @@ class Collection implements ArrayAccess, CanBeEscapedWhenCastToString, Enumerabl
     /**
      * Determine if an item exists at an offset.
      *
-     * @param  TKey  $offset
+     * @param  TKey  $key
      * @return bool
      */
-    public function offsetExists($offset): bool
+    public function offsetExists($key): bool
     {
-        return isset($this->items[$offset]);
+        return isset($this->items[$key]);
     }
 
     /**
      * Get an item at a given offset.
      *
-     * @param  TKey  $offset
+     * @param  TKey  $key
      * @return TValue
      */
-    public function offsetGet($offset): mixed
+    public function offsetGet($key): mixed
     {
-        return $this->items[$offset];
+        return $this->items[$key];
     }
 
     /**
      * Set the item at a given offset.
      *
-     * @param  TKey|null  $offset
+     * @param  TKey|null  $key
      * @param  TValue  $value
      * @return void
      */
-    public function offsetSet($offset, $value): void
+    public function offsetSet($key, $value): void
     {
-        if (is_null($offset)) {
+        if (is_null($key)) {
             $this->items[] = $value;
         } else {
-            $this->items[$offset] = $value;
+            $this->items[$key] = $value;
         }
     }
 
     /**
      * Unset the item at a given offset.
      *
-     * @param  TKey  $offset
+     * @param  TKey  $key
      * @return void
      */
-    public function offsetUnset($offset): void
+    public function offsetUnset($key): void
     {
-        unset($this->items[$offset]);
+        unset($this->items[$key]);
     }
 }

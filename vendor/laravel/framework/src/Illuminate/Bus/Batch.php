@@ -161,17 +161,10 @@ class Batch implements Arrayable, JsonSerializable
 
                 $chain = $this->prepareBatchedChain($job);
 
-                $first = $chain->first();
-
-                if (isset($this->options['queue'])) {
-                    $first->allOnQueue($this->options['queue']);
-                }
-
-                if (isset($this->options['connection'])) {
-                    $first->allOnConnection($this->options['connection']);
-                }
-
-                return $first->chain($chain->slice(1)->values()->all());
+                return $chain->first()
+                    ->allOnQueue($this->options['queue'] ?? null)
+                    ->allOnConnection($this->options['connection'] ?? null)
+                    ->chain($chain->slice(1)->values()->all());
             } else {
                 $job->withBatchId($this->id);
 
@@ -343,7 +336,7 @@ class Batch implements Arrayable, JsonSerializable
         $counts = $this->incrementFailedJobs($jobId);
 
         if ($counts->failedJobs === 1 && ! $this->allowsFailures()) {
-            $this->cancel($e);
+            $this->cancel();
         }
 
         if ($this->allowsFailures()) {
@@ -406,17 +399,16 @@ class Batch implements Arrayable, JsonSerializable
     /**
      * Cancel the batch.
      *
-     * @param  \Throwable|null  $exception
      * @return void
      */
-    public function cancel(?Throwable $exception = null)
+    public function cancel()
     {
         $this->repository->cancel($this->id);
 
         $container = Container::getInstance();
 
         if ($container->bound(Dispatcher::class)) {
-            $container->make(Dispatcher::class)->dispatch(new BatchCanceled($this, $exception));
+            $container->make(Dispatcher::class)->dispatch(new BatchCanceled($this));
         }
     }
 
