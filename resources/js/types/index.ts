@@ -3,6 +3,16 @@ export type TransportMode = 'Sea' | 'Air' | 'Road' | 'Rail';
 export type ShipmentType = 'international' | 'domestic';
 export type CargoType = 'General' | 'Electronics' | 'Perishable' | 'Hazardous' | 'Automotive' | 'Textiles' | 'Machinery';
 
+export interface Party {
+  companyName: string;
+  streetAddress: string;
+  cityTown: string;
+  country: string;
+  tel: string;
+  email: string;
+  contactName: string;
+}
+
 export interface Shipment {
   id: string;
   type: ShipmentType;
@@ -22,6 +32,12 @@ export interface Shipment {
   phone: string;
   notes: string;
   declaredValue: string;
+  // Airwaybill
+  awbNumber?: string;
+  pieces?: number;
+  contents?: string;
+  consignor?: Party;
+  consignee?: Party;
   // International fields
   containers?: number;
   vessel?: string;

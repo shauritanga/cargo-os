@@ -9,6 +9,16 @@ interface Toast {
 
 export type Theme = 'dark' | 'light' | 'rtexpress' | 'rtexpress-light';
 
+export interface CompanySettings {
+  name: string;
+  address: string;
+  country: string;
+  currency: string;
+  dateFormat: string;
+  awbPrefix: string;
+  awbCounter: number;
+}
+
 interface AppState {
   theme: Theme;
   activePage: PageId;
@@ -19,6 +29,7 @@ interface AppState {
   routes: Route[];
   warehouses: Warehouse[];
   toast: Toast | null;
+  companySettings: CompanySettings;
 }
 
 interface AppActions {
@@ -33,6 +44,8 @@ interface AppActions {
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
   setWarehouses: React.Dispatch<React.SetStateAction<Warehouse[]>>;
   showToast: (message: string, color?: Toast['color']) => void;
+  setCompanySettings: React.Dispatch<React.SetStateAction<CompanySettings>>;
+  nextAwbNumber: () => string;
 }
 
 const AppContext = createContext<AppState & AppActions | null>(null);
@@ -47,6 +60,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [routes, setRoutes] = useState<Route[]>([...ROUTE_DATA]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(() => genWarehouses());
   const [toast, setToast] = useState<Toast | null>(null);
+  const [companySettings, setCompanySettings] = useState<CompanySettings>({
+    name: 'RTEXPRESS',
+    address: 'Westlands, Nairobi',
+    country: 'Kenya',
+    currency: 'USD',
+    dateFormat: 'DD/MM/YYYY',
+    awbPrefix: '02019',
+    awbCounter: 1,
+  });
+
+  const awbCounterRef = React.useRef(1);
+
+  const nextAwbNumber = useCallback((): string => {
+    const counter = awbCounterRef.current;
+    awbCounterRef.current += 1;
+    setCompanySettings(s => ({ ...s, awbCounter: awbCounterRef.current }));
+    return `${companySettings.awbPrefix} ${String(counter).padStart(7, '0')}`;
+  }, [companySettings.awbPrefix]);
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
@@ -71,9 +102,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       theme, activePage, sidebarCollapsed,
-      shipments, bookings, fleet, routes, warehouses, toast,
+      shipments, bookings, fleet, routes, warehouses, toast, companySettings,
       setTheme, toggleTheme, setActivePage, setSidebarCollapsed, toggleSidebar,
       setShipments, setBookings, setFleet, setRoutes, setWarehouses, showToast,
+      setCompanySettings, nextAwbNumber,
     }}>
       {children}
     </AppContext.Provider>

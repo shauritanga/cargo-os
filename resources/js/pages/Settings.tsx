@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import type { Theme } from '../context/AppContext';
+import type { Theme, CompanySettings } from '../context/AppContext';
 
 const THEMES: { value: Theme; label: string; desc: string }[] = [
   { value: 'dark', label: 'Dark', desc: 'Default dark interface' },
@@ -10,14 +10,34 @@ const THEMES: { value: Theme; label: string; desc: string }[] = [
 ];
 
 export default function Settings() {
-  const { theme, setTheme, showToast } = useApp();
+  const { theme, setTheme, showToast, companySettings, setCompanySettings } = useApp();
 
   const [profile, setProfile] = useState({ name: 'Amir Khalil', email: 'amir@rtexpress.com', phone: '+254 700 000 001', role: 'Ops Manager', timezone: 'Africa/Nairobi' });
-  const [company, setCompany] = useState({ name: 'RTEXPRESS', address: 'Westlands, Nairobi', country: 'Kenya', currency: 'USD', dateFormat: 'DD/MM/YYYY' });
+  const [company, setCompany] = useState({
+    name: companySettings.name,
+    address: companySettings.address,
+    country: companySettings.country,
+    currency: companySettings.currency,
+    dateFormat: companySettings.dateFormat,
+    awbPrefix: companySettings.awbPrefix,
+  });
   const [notif, setNotif] = useState({ emailShipment: true, emailBooking: true, emailInvoice: false, desktopAlerts: true, overdueReminder: true, weeklyReport: true });
   const [activeTab, setActiveTab] = useState<'profile' | 'company' | 'appearance' | 'notifications' | 'security'>('profile');
 
-  const save = (section: string) => showToast(`${section} settings saved`, 'green');
+  const save = (section: string) => {
+    if (section === 'Company') {
+      setCompanySettings((prev: CompanySettings) => ({
+        ...prev,
+        name: company.name,
+        address: company.address,
+        country: company.country,
+        currency: company.currency,
+        dateFormat: company.dateFormat,
+        awbPrefix: company.awbPrefix,
+      }));
+    }
+    showToast(`${section} settings saved`, 'green');
+  };
 
   const tabs = [
     { id: 'profile' as const, label: 'Profile', icon: (
@@ -146,6 +166,13 @@ export default function Settings() {
                     <option value="MM/DD/YYYY">MM/DD/YYYY</option>
                     <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                   </select>
+                </div>
+                <div className="form-group">
+                  <label>Airwaybill Prefix</label>
+                  <input className="sh-input" value={company.awbPrefix} maxLength={8} placeholder="e.g. 02019" onChange={e => setCompany(c => ({ ...c, awbPrefix: e.target.value }))} />
+                  <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+                    AWB numbers will be generated as: <strong>{company.awbPrefix || '02019'} 0000001</strong>
+                  </div>
                 </div>
               </div>
               <button className="btn primary" onClick={() => save('Company')}>Save Changes</button>
