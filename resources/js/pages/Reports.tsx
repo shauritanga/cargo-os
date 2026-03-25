@@ -39,11 +39,11 @@ const PERF_METRICS = [
 function BarChart({ data, color = 'var(--blue)' }: { data: { month: string; value: number }[]; color?: string }) {
   const max = Math.max(...data.map(d => d.value));
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, padding: '0 4px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 140, paddingTop: 8 }}>
       {data.map((d, i) => (
-        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
-          <div style={{ width: '100%', borderRadius: '3px 3px 0 0', background: color, opacity: 0.85, height: `${(d.value / max) * 90}%`, transition: 'height 0.5s ease', minHeight: 2 }} />
-          <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{d.month}</span>
+        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }}>
+          <div style={{ width: '100%', borderRadius: '4px 4px 0 0', background: color, opacity: 0.9, height: `${(d.value / max) * 88}%`, transition: 'height 0.6s cubic-bezier(0.4,0,0.2,1)', minHeight: 3 }} />
+          <span style={{ fontSize: 10, color: 'var(--text-3)', whiteSpace: 'nowrap' }}>{d.month}</span>
         </div>
       ))}
     </div>
@@ -120,15 +120,15 @@ export default function Reports() {
       {/* CHARTS ROW */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {/* Shipments Chart */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div className="card" style={{ padding: '20px 24px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>Shipment Volume</div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-1)', marginBottom: 3 }}>Shipment Volume</div>
               <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Monthly trend</div>
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 3, background: 'var(--bg-3)', borderRadius: 7, padding: 3, border: '1px solid var(--border)' }}>
               {(['3m','6m','1y'] as const).map(p => (
-                <button key={p} onClick={() => setPeriod(p)} style={{ padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 500, border: '1px solid var(--border-strong)', background: period === p ? 'var(--blue)' : 'transparent', color: period === p ? 'white' : 'var(--text-2)', cursor: 'pointer' }}>{p}</button>
+                <button key={p} onClick={() => setPeriod(p)} style={{ padding: '4px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: 'none', background: period === p ? 'var(--blue)' : 'transparent', color: period === p ? 'white' : 'var(--text-3)', cursor: 'pointer', transition: 'all 0.15s' }}>{p}</button>
               ))}
             </div>
           </div>
@@ -136,12 +136,13 @@ export default function Reports() {
         </div>
 
         {/* Revenue Chart */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div className="card" style={{ padding: '20px 24px 24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
             <div>
-              <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>Revenue ($K)</div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-1)', marginBottom: 3 }}>Revenue ($K)</div>
               <div style={{ fontSize: 12, color: 'var(--text-3)' }}>Monthly trend</div>
             </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green)', letterSpacing: '-0.03em' }}>${totalRevenue}K</div>
           </div>
           <BarChart data={REVENUE_DATA} color="var(--green)" />
         </div>
@@ -150,17 +151,21 @@ export default function Reports() {
       {/* MODE SPLIT + PERFORMANCE */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         {/* Mode Split */}
-        <div className="card">
-          <div style={{ fontWeight: 600, color: 'var(--text-1)', marginBottom: 16 }}>Shipment by Mode</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="card" style={{ padding: '20px 24px' }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-1)', marginBottom: 4 }}>Shipment by Mode</div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 20 }}>Distribution across transport modes</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {MODE_SPLIT.map(m => (
               <div key={m.label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-2)', fontWeight: 500 }}>{m.label}</span>
-                  <span style={{ color: m.color, fontWeight: 600 }}>{m.value}%</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{m.label}</span>
+                  </div>
+                  <span style={{ fontSize: 13, color: m.color, fontWeight: 700 }}>{m.value}%</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-4)', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${m.value}%`, borderRadius: 3, background: m.color, transition: 'width 0.6s ease' }} />
+                <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-4)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${m.value}%`, borderRadius: 4, background: m.color, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
                 </div>
               </div>
             ))}
@@ -168,18 +173,26 @@ export default function Reports() {
         </div>
 
         {/* Performance Metrics */}
-        <div className="card">
-          <div style={{ fontWeight: 600, color: 'var(--text-1)', marginBottom: 16 }}>Performance vs Target</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="card" style={{ padding: '20px 24px' }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-1)', marginBottom: 4 }}>Performance vs Target</div>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 20 }}>Current period KPIs against goals</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {PERF_METRICS.map(m => (
               <div key={m.label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-2)' }}>{m.label}</span>
-                  <span style={{ color: 'var(--text-3)', fontSize: 11 }}>{m.value}% / {m.target}% target</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-1)', fontWeight: 500 }}>{m.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 14, color: m.color, fontWeight: 700 }}>{m.value}%</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-3)' }}>/ {m.target}% target</span>
+                  </div>
                 </div>
-                <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-4)', position: 'relative' }}>
-                  <div style={{ height: '100%', width: `${m.value}%`, borderRadius: 3, background: m.color }} />
-                  <div style={{ position: 'absolute', top: -2, left: `${m.target}%`, width: 2, height: 10, background: 'var(--text-3)', borderRadius: 1 }} />
+                <div style={{ height: 8, borderRadius: 4, background: 'var(--bg-4)', position: 'relative', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${m.value}%`, borderRadius: 4, background: m.color, transition: 'width 0.7s cubic-bezier(0.4,0,0.2,1)' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+                  <span style={{ fontSize: 10, color: m.value >= m.target ? 'var(--green)' : 'var(--amber)' }}>
+                    {m.value >= m.target ? '✓ On target' : `${(m.target - m.value).toFixed(1)}% below target`}
+                  </span>
                 </div>
               </div>
             ))}
