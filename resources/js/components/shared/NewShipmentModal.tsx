@@ -480,11 +480,11 @@ export default function NewShipmentModal({ onClose }: Props) {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Declared Value</label>
-              <input className="form-input" placeholder="e.g. USD 5,000" value={declaredValue} onChange={e => setDeclaredValue(e.target.value)} />
+              <input className="form-input" placeholder="e.g. TZS 500,000" value={declaredValue} onChange={e => setDeclaredValue(e.target.value)} />
             </div>
             <div className="form-group">
               <label className="form-label">Insurance</label>
-              <input className="form-input" placeholder="e.g. USD 50,000" value={insurance} onChange={e => setInsurance(e.target.value)} />
+              <input className="form-input" placeholder="e.g. TZS 5,000,000" value={insurance} onChange={e => setInsurance(e.target.value)} />
             </div>
           </div>
 

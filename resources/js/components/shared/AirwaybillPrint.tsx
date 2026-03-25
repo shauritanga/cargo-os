@@ -169,14 +169,15 @@ function buildPrintHtml(
         <div style="padding:5px 8px;font-size:10px;color:#111;min-height:40px">${shipment.notes || '—'}</div>
       </div>
       <div style="border-bottom:1px solid #aaa">
-        ${sectionTitle('Declared Value')}
+        ${sectionTitle('Declared Value (TZS)')}
         <div style="padding:5px 8px;font-size:10px;color:#111">${shipment.declaredValue || '—'}</div>
       </div>
       <div>
-        ${sectionTitle('Insurance')}
+        ${sectionTitle('Insurance (TZS)')}
         <div style="padding:5px 8px;font-size:10px;color:#111">
           <span style="margin-right:14px">YES ${hasIns ? '☑' : '☐'}</span>
           <span>NO ${hasIns ? '☐' : '☑'}</span>
+          ${hasIns ? `<div style="margin-top:4px;font-weight:700;color:#111">${shipment.insurance}</div>` : ''}
         </div>
       </div>
     </div>
@@ -367,14 +368,15 @@ export default function AirwaybillPrint({ shipment, companyName, companyAddress 
                   <div style={{ padding: '5px 8px', fontSize: 10, color: '#111', minHeight: 40 }}>{shipment.notes || '—'}</div>
                 </div>
                 <div style={{ borderBottom: border }}>
-                  <PreviewSectionTitle title="Declared Value" />
+                  <PreviewSectionTitle title="Declared Value (TZS)" />
                   <div style={{ padding: '5px 8px', fontSize: 10, color: '#111' }}>{shipment.declaredValue || '—'}</div>
                 </div>
                 <div>
-                  <PreviewSectionTitle title="Insurance" />
+                  <PreviewSectionTitle title="Insurance (TZS)" />
                   <div style={{ padding: '5px 8px', fontSize: 10, color: '#111' }}>
                     <span style={{ marginRight: 12 }}>YES {hasIns ? '☑' : '☐'}</span>
                     <span>NO {hasIns ? '☐' : '☑'}</span>
+                    {hasIns && <div style={{ marginTop: 4, fontWeight: 700, color: '#111' }}>{shipment.insurance}</div>}
                   </div>
                 </div>
               </div>
