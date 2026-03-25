@@ -12,6 +12,7 @@ import Billing from '../../pages/Billing';
 import Reports from '../../pages/Reports';
 import Settings from '../../pages/Settings';
 import Placeholder from '../../pages/Placeholder';
+import Tracking from '../../pages/Tracking';
 import NewShipmentModal from '../shared/NewShipmentModal';
 import Toast from '../shared/Toast';
 import { useApp } from '../../context/AppContext';
@@ -31,6 +32,9 @@ export default function Shell() {
         </div>
         <div className={`page${activePage === 'shipments' ? ' active' : ''}`}>
           <Shipments />
+        </div>
+        <div className={`page${activePage === 'tracking' ? ' active' : ''}`}>
+          <Tracking />
         </div>
         <div className={`page${activePage === 'bookings' ? ' active' : ''}`}>
           <Bookings />

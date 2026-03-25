@@ -160,12 +160,13 @@ export default function Shipments() {
     return map[s.status] || map.transit;
   };
 
+  const shTotal = shipments.length || 1;
   const kpiItems = [
-    { label:'Total Shipments', value: shipments.length, color:'var(--blue)', changeClass:'up', change:'↑ 8%', icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="4" width="14" height="11" rx="1.5"/><path d="M2 8h14"/></svg>, key:'all' },
-    { label:'In Transit',      value: counts.transit,   color:'var(--blue)',  changeClass:null, change:null, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M6 9l2 2 4-4"/></svg>, key:'transit' },
-    { label:'Delivered',       value: counts.delivered, color:'var(--green)', changeClass:null, change:null, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg>, key:'delivered' },
-    { label:'Pending / Customs', value: counts.pending + counts.customs, color:'var(--amber)', changeClass:null, change:null, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg>, key:'pending' },
-    { label:'Delayed',         value: counts.delayed,   color:'var(--red)',   changeClass:null, change:null, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2L1.5 15h15L9 2z"/><path d="M9 7v4M9 13.5v.5"/></svg>, key:'delayed' },
+    { label:'Total Shipments',   value:shipments.length,                   color:'var(--blue)',   changeClass:'up', change:'↑ 8%', progress:100,                                                   icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="4" width="14" height="11" rx="1.5"/><path d="M2 8h14"/></svg>, key:'all' },
+    { label:'In Transit',        value:counts.transit,                     color:'var(--amber)',  changeClass:null, change:null,   progress:Math.round((counts.transit/shTotal)*100),               icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="1" y="5" width="12" height="9" rx="1.5"/><path d="M13 8l3 2v4h-3V8z"/><circle cx="4.5" cy="14" r="1.5"/><circle cx="10.5" cy="14" r="1.5"/><circle cx="15" cy="14" r="1.5"/></svg>, key:'transit' },
+    { label:'Delivered',         value:counts.delivered,                   color:'var(--green)',  changeClass:null, change:null,   progress:Math.round((counts.delivered/shTotal)*100),             icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg>, key:'delivered' },
+    { label:'Pending / Customs', value:counts.pending + counts.customs,    color:'var(--purple)', changeClass:null, change:null,   progress:Math.round(((counts.pending+counts.customs)/shTotal)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg>, key:'pending' },
+    { label:'Delayed',           value:counts.delayed,                     color:'var(--red)',    changeClass:null, change:null,   progress:Math.round((counts.delayed/shTotal)*100),               icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2L1.5 15h15L9 2z"/><path d="M9 7v4M9 13.5v.5"/></svg>, key:'delayed' },
   ];
 
   if (shipmentsLoading) return (
@@ -190,18 +191,19 @@ export default function Shipments() {
     <>
     <div className="content">
       {/* KPI BAR */}
-      <div style={{ display: 'flex', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 14 }}>
         {kpiItems.map(item => (
-          <div key={item.key} className="stat-card" style={{ flex: 1, padding: '14px 18px', animation: 'none', cursor: 'pointer' }}
+          <div key={item.key} className="stat-card" style={{ cursor: 'pointer' }}
             onClick={() => { setStatusFilter(item.key); setPage(1); }}>
-            <div className="stat-top" style={{ marginBottom: 6 }}>
-              <div className="stat-icon" style={{ background: `${item.color}20`, color: item.color, width: 28, height: 28 }}>
+            <div className="stat-top">
+              <div className="stat-icon" style={{ background: `${item.color}20`, color: item.color }}>
                 {item.icon}
               </div>
-              {item.change && <span className={`stat-change ${item.changeClass}`} style={{ fontSize: 11 }}>{item.change}</span>}
+              {item.change && <span className={`stat-change ${item.changeClass}`}>{item.change}</span>}
             </div>
-            <div className="stat-value" style={{ fontSize: 22, color: item.key !== 'all' ? item.color : undefined }}>{item.value}</div>
+            <div className="stat-value" style={{ color: item.key !== 'all' ? item.color : undefined }}>{item.value}</div>
             <div className="stat-label">{item.label}</div>
+            <div className="progress-bar"><div className="progress-fill" style={{ width: `${item.progress}%`, background: item.color }}/></div>
           </div>
         ))}
       </div>

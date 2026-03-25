@@ -45,25 +45,27 @@ export default function Routes() {
     avgDays: (() => { const act = routes.filter(r => r.status === 'active'); return act.length ? Math.round(act.reduce((a, r) => a + r.avgDays, 0) / act.length) : 0; })(),
   };
 
+  const total = routes.length || 1;
   const rtKpiItems = [
-    { label:'Total Routes',      value:kpis.total,          color:'var(--blue)',   icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="4" cy="9" r="2"/><circle cx="14" cy="9" r="2"/><path d="M6 9h4M2 5h14M2 13h14"/></svg> },
-    { label:'Active Routes',     value:kpis.active,         color:'var(--green)',  icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg> },
-    { label:'Active Loads',      value:kpis.totalShipments, color:'var(--amber)',  icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="4" width="14" height="11" rx="1.5"/><path d="M2 8h14M6 2v4M12 2v4"/></svg> },
-    { label:'Avg Transit (days)', value:`${kpis.avgDays}d`, color:'var(--purple)', icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg> },
+    { label:'Total Routes',       value:kpis.total,          color:'var(--blue)',   progress:100, icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="4" cy="9" r="2"/><circle cx="14" cy="9" r="2"/><path d="M6 9h4M2 5h14M2 13h14"/></svg> },
+    { label:'Active Routes',      value:kpis.active,         color:'var(--green)',  progress:Math.round((kpis.active/total)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg> },
+    { label:'Active Loads',       value:kpis.totalShipments, color:'var(--amber)',  progress:Math.min(100,Math.round((kpis.totalShipments/Math.max(total*5,1))*100)), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="4" width="14" height="11" rx="1.5"/><path d="M2 8h14M6 2v4M12 2v4"/></svg> },
+    { label:'Avg Transit (days)', value:`${kpis.avgDays}d`,  color:'var(--purple)', progress:Math.min(100,Math.round((kpis.avgDays/30)*100)), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg> },
   ];
 
   return (
     <>
     <div className="content">
       {/* KPI BAR */}
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14 }}>
+      <div className="stat-grid">
         {rtKpiItems.map(item => (
-          <div key={item.label} className="stat-card" style={{ padding:'14px 18px',animation:'none' }}>
-            <div className="stat-top" style={{ marginBottom:6 }}>
-              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color,width:28,height:28 }}>{item.icon}</div>
+          <div key={item.label} className="stat-card">
+            <div className="stat-top">
+              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color }}>{item.icon}</div>
             </div>
-            <div className="stat-value" style={{ fontSize:22,color:item.label!=='Total Routes'?item.color:undefined }}>{item.value}</div>
+            <div className="stat-value" style={{ color:item.label!=='Total Routes'?item.color:undefined }}>{item.value}</div>
             <div className="stat-label">{item.label}</div>
+            <div className="progress-bar"><div className="progress-fill" style={{ width:`${item.progress}%`, background:item.color }}/></div>
           </div>
         ))}
       </div>

@@ -12,6 +12,7 @@ const THEME_LABELS: Record<Theme, string> = {
 const PAGE_TITLES: Record<string, string> = {
   dashboard: 'Dashboard',
   shipments: 'Shipments',
+  tracking: 'Track Shipment',
   bookings: 'Bookings',
   fleet: 'Fleet',
   routes: 'Routes',

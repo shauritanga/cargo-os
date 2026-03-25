@@ -44,19 +44,20 @@ export default function Warehouses() {
     <>
     <div className="content">
       {/* KPI ROW */}
-      <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14 }}>
+      <div className="stat-grid">
         {[
-          { label:'Total Warehouses', value:kpis.total, color:'var(--blue)', icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 8L9 2l7 6v8H2V8z"/><rect x="7" y="11" width="4" height="5"/></svg> },
-          { label:'Avg Capacity Used', value:`${kpis.avgFill}%`, color:'var(--amber)', icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="4" width="14" height="11" rx="1.5"/><path d="M2 8h14M6 12h6"/></svg> },
-          { label:'Total Capacity (m²)', value:kpis.totalSpace.toLocaleString(), color:'var(--green)', icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="2" width="14" height="14" rx="2"/><path d="M6 9h6M9 6v6"/></svg> },
-          { label:'Near Capacity (>85%)', value:kpis.critical, color:'var(--red)', icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2L1.5 15h15L9 2z"/><path d="M9 7v4M9 13v.5"/></svg> },
+          { label:'Total Warehouses',    value:kpis.total,                     color:'var(--blue)',  progress:100, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 8L9 2l7 6v8H2V8z"/><rect x="7" y="11" width="4" height="5"/></svg> },
+          { label:'Avg Capacity Used',   value:`${kpis.avgFill}%`,             color:'var(--amber)', progress:Number(kpis.avgFill), icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="4" width="14" height="11" rx="1.5"/><path d="M2 8h14M6 12h6"/></svg> },
+          { label:'Total Capacity (m²)', value:kpis.totalSpace.toLocaleString(), color:'var(--green)', progress:Math.min(100,Math.round((kpis.totalSpace/50000)*100)), icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="2" width="14" height="14" rx="2"/><path d="M6 9h6M9 6v6"/></svg> },
+          { label:'Near Capacity (>85%)', value:kpis.critical,                 color:'var(--red)',   progress:warehouses.length ? Math.round((kpis.critical/warehouses.length)*100) : 0, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2L1.5 15h15L9 2z"/><path d="M9 7v4M9 13v.5"/></svg> },
         ].map(item => (
-          <div key={item.label} className="stat-card" style={{ padding:'14px 18px',animation:'none' }}>
-            <div className="stat-top" style={{ marginBottom:6 }}>
-              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color,width:28,height:28 }}>{item.icon}</div>
+          <div key={item.label} className="stat-card">
+            <div className="stat-top">
+              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color }}>{item.icon}</div>
             </div>
-            <div className="stat-value" style={{ fontSize:22,color:item.label.includes('Capacity Used')||item.label.includes('Near')?item.color:undefined }}>{item.value}</div>
+            <div className="stat-value" style={{ color:item.label.includes('Capacity Used')||item.label.includes('Near')?item.color:undefined }}>{item.value}</div>
             <div className="stat-label">{item.label}</div>
+            <div className="progress-bar"><div className="progress-fill" style={{ width:`${item.progress}%`, background:item.color }}/></div>
           </div>
         ))}
       </div>

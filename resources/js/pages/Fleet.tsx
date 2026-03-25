@@ -55,12 +55,14 @@ export default function Fleet() {
     return c;
   }, [fleet]);
 
+  const total = fleet.length || 1;
+  const utilPct = Math.round((kpis.active / total) * 100);
   const fltKpiItems = [
-    { label:'Total Vehicles',   value:fleet.length,   color:'var(--blue)',   icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="1" y="5" width="12" height="9" rx="1.5"/><path d="M13 8l3 2v4h-3V8z"/></svg> },
-    { label:'Active / En Route', value:kpis.active,   color:'var(--green)',  icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg> },
-    { label:'Idle / Available',  value:kpis.idle,     color:'var(--amber)',  icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg> },
-    { label:'In Maintenance',    value:kpis.maintenance,color:'var(--red)', icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2L1.5 15h15L9 2z"/><path d="M9 7v4M9 13v.5"/></svg> },
-    { label:'Fleet Utilization', value:`${Math.round((kpis.active/Math.max(1,fleet.length))*100)}%`, color:'var(--purple)', icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 6v3l2 2"/></svg> },
+    { label:'Total Vehicles',    value:fleet.length,  color:'var(--blue)',   progress:100, icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="1" y="5" width="12" height="9" rx="1.5"/><path d="M13 8l3 2v4h-3V8z"/></svg> },
+    { label:'Active / En Route', value:kpis.active,   color:'var(--green)',  progress:Math.round((kpis.active/total)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg> },
+    { label:'Idle / Available',  value:kpis.idle,     color:'var(--amber)',  progress:Math.round((kpis.idle/total)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg> },
+    { label:'In Maintenance',    value:kpis.maintenance, color:'var(--red)', progress:Math.round((kpis.maintenance/total)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2L1.5 15h15L9 2z"/><path d="M9 7v4M9 13v.5"/></svg> },
+    { label:'Fleet Utilization', value:`${utilPct}%`, color:'var(--purple)', progress:utilPct, icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 6v3l2 2"/></svg> },
   ];
 
   return (
@@ -69,12 +71,13 @@ export default function Fleet() {
       {/* KPI BAR */}
       <div style={{ display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:14 }}>
         {fltKpiItems.map(item => (
-          <div key={item.label} className="stat-card" style={{ padding:'14px 18px',animation:'none' }}>
-            <div className="stat-top" style={{ marginBottom:6 }}>
-              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color,width:28,height:28 }}>{item.icon}</div>
+          <div key={item.label} className="stat-card">
+            <div className="stat-top">
+              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color }}>{item.icon}</div>
             </div>
-            <div className="stat-value" style={{ fontSize:22,color:item.label!=='Total Vehicles'?item.color:undefined }}>{item.value}</div>
+            <div className="stat-value" style={{ color:item.label!=='Total Vehicles'?item.color:undefined }}>{item.value}</div>
             <div className="stat-label">{item.label}</div>
+            <div className="progress-bar"><div className="progress-fill" style={{ width:`${item.progress}%`, background:item.color }}/></div>
           </div>
         ))}
       </div>

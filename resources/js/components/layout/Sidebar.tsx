@@ -65,6 +65,14 @@ export default function Sidebar() {
           </svg>
         }/>
 
+        <NavItem pageId="tracking" label="Track Shipment" icon={
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <circle cx="8" cy="8" r="6"/>
+            <path d="M13 13l4 4"/>
+            <path d="M6 8h4M8 6v4"/>
+          </svg>
+        }/>
+
         <NavItem pageId="bookings" label="Bookings"
           badge={pendingBookings > 0 ? pendingBookings : undefined}
           badgeColor={pendingBookings > 0 ? 'var(--amber)' : undefined}

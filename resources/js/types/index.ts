@@ -141,7 +141,7 @@ export interface Warehouse {
   notes: string;
 }
 
-export type PageId = 'dashboard' | 'shipments' | 'bookings' | 'fleet' | 'routes' | 'warehouses' | 'customers' | 'billing' | 'reports' | 'settings' | 'placeholder';
+export type PageId = 'dashboard' | 'shipments' | 'tracking' | 'bookings' | 'fleet' | 'routes' | 'warehouses' | 'customers' | 'billing' | 'reports' | 'settings' | 'placeholder';
 
 export interface Column {
   key: string;

@@ -55,27 +55,29 @@ export default function Bookings() {
     showToast('Booking converted to shipment', 'green');
   }
 
+  const bkTotal = bookings.length || 1;
   const bkKpiItems = [
-    { label:'Total Requests',   value:bookings.length,  color:'var(--blue)',   icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="3" width="14" height="13" rx="1.5"/><path d="M2 7h14"/><path d="M6 1v4M12 1v4"/></svg>, key:'all' },
-    { label:'New / Unreviewed', value:kpis.new,         color:'var(--blue)',   icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2l2 5h5l-4 3 2 5-5-3-5 3 2-5-4-3h5z"/></svg>, key:'new' },
-    { label:'Under Review',     value:kpis.reviewing,   color:'var(--purple)', icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg>, key:'reviewing' },
-    { label:'Converted',        value:kpis.converted,   color:'var(--green)',  icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg>, key:'converted' },
-    { label:'Rejected',         value:kpis.rejected,    color:'var(--red)',    icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M5 5l8 8M13 5l-8 8"/></svg>, key:'rejected' },
+    { label:'Total Requests',   value:bookings.length,  color:'var(--blue)',   progress:100, icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="3" width="14" height="13" rx="1.5"/><path d="M2 7h14"/><path d="M6 1v4M12 1v4"/></svg>, key:'all' },
+    { label:'New / Unreviewed', value:kpis.new,         color:'var(--blue)',   progress:Math.round((kpis.new/bkTotal)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2l2 5h5l-4 3 2 5-5-3-5 3 2-5-4-3h5z"/></svg>, key:'new' },
+    { label:'Under Review',     value:kpis.reviewing,   color:'var(--purple)', progress:Math.round((kpis.reviewing/bkTotal)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg>, key:'reviewing' },
+    { label:'Converted',        value:kpis.converted,   color:'var(--green)',  progress:Math.round((kpis.converted/bkTotal)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M2 9l5 5 9-9"/></svg>, key:'converted' },
+    { label:'Rejected',         value:kpis.rejected,    color:'var(--red)',    progress:Math.round((kpis.rejected/bkTotal)*100), icon:<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M5 5l8 8M13 5l-8 8"/></svg>, key:'rejected' },
   ];
 
   return (
     <>
     <div className="content">
       {/* KPI BAR */}
-      <div style={{ display:'flex', gap:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14 }}>
         {bkKpiItems.map(item => (
-          <div key={item.key} className="stat-card" style={{ flex:1,padding:'14px 18px',animation:'none',cursor:'pointer' }}
+          <div key={item.key} className="stat-card" style={{ cursor:'pointer' }}
             onClick={() => { setStatusFilter(item.key); setPage(1); }}>
-            <div className="stat-top" style={{ marginBottom:6 }}>
-              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color,width:28,height:28 }}>{item.icon}</div>
+            <div className="stat-top">
+              <div className="stat-icon" style={{ background:`${item.color}20`,color:item.color }}>{item.icon}</div>
             </div>
-            <div className="stat-value" style={{ fontSize:22,color:item.key!=='all'?item.color:undefined }}>{item.value}</div>
+            <div className="stat-value" style={{ color:item.key!=='all'?item.color:undefined }}>{item.value}</div>
             <div className="stat-label">{item.label}</div>
+            <div className="progress-bar"><div className="progress-fill" style={{ width:`${item.progress}%`, background:item.color }}/></div>
           </div>
         ))}
       </div>
