@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import Badge, { STATUS_LABEL } from '../components/shared/Badge';
 import Pagination from '../components/shared/Pagination';
 import { ModeIcon } from '../components/shared/ModeIcon';
+import AirwaybillPrint from '../components/shared/AirwaybillPrint';
 import { fmtDate } from '../data/mock';
 import type { Shipment, ShipmentStatus, TransportMode, Column, TimelineStep } from '../types';
 
@@ -38,7 +39,7 @@ const INIT_COLUMNS: Column[] = [
 ];
 
 export default function Shipments() {
-  const { shipments, setShipments } = useApp();
+  const { shipments, setShipments, companySettings } = useApp();
   const [columns, setColumns] = useState<Column[]>(INIT_COLUMNS);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -49,6 +50,7 @@ export default function Shipments() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [printShipment, setPrintShipment] = useState<Shipment | null>(null);
   const [showColMenu, setShowColMenu] = useState(false);
   const colMenuRef = useRef<HTMLDivElement>(null);
 
@@ -293,6 +295,16 @@ export default function Shipments() {
       </div>
     </div>
 
+      {/* AIRWAYBILL PRINT MODAL */}
+      {printShipment && (
+        <AirwaybillPrint
+          shipment={printShipment}
+          companyName={companySettings.name}
+          companyAddress={companySettings.address}
+          onClose={() => setPrintShipment(null)}
+        />
+      )}
+
       {/* DRAWER OVERLAY */}
       {detailShipment && <div className="drawer-overlay open" onClick={() => setDetailId(null)} />}
 
@@ -302,6 +314,11 @@ export default function Shipments() {
           <div className="dp-header">
             <div>
               <div style={{ fontSize:15,fontWeight:600,letterSpacing:'-0.02em' }}>{detailShipment.id}</div>
+              {detailShipment.awbNumber && (
+                <div style={{ fontSize:11,color:'var(--text-3)',marginTop:2,fontFamily:'monospace',letterSpacing:.5 }}>
+                  AWB: <span style={{ color:'var(--blue)',fontWeight:600 }}>{detailShipment.awbNumber}</span>
+                </div>
+              )}
               <div style={{ marginTop:4 }}>
                 <Badge variant={detailShipment.status}>{STATUS_LABEL[detailShipment.status]}</Badge>
                 {' '}
@@ -401,13 +418,38 @@ export default function Shipments() {
               </div>
             )}
 
-            {/* Contact */}
-            <div className="dp-section">
-              <div className="dp-section-title">Contact</div>
-              <div className="dp-row"><span className="dp-key">Name</span><span className="dp-val">{detailShipment.contact}</span></div>
-              <div className="dp-row"><span className="dp-key">Email</span><span className="dp-val" style={{ color:'var(--blue)' }}>{detailShipment.email}</span></div>
-              <div className="dp-row"><span className="dp-key">Phone</span><span className="dp-val">{detailShipment.phone||'—'}</span></div>
-            </div>
+            {/* Consignor */}
+            {detailShipment.consignor ? (
+              <div className="dp-section">
+                <div className="dp-section-title">Consignor (Sender)</div>
+                <div className="dp-row"><span className="dp-key">Company</span><span className="dp-val">{detailShipment.consignor.companyName}</span></div>
+                <div className="dp-row"><span className="dp-key">Name</span><span className="dp-val">{detailShipment.consignor.contactName||'—'}</span></div>
+                <div className="dp-row"><span className="dp-key">Address</span><span className="dp-val" style={{ textAlign:'right',maxWidth:180 }}>{detailShipment.consignor.streetAddress}, {detailShipment.consignor.cityTown}</span></div>
+                <div className="dp-row"><span className="dp-key">Country</span><span className="dp-val">{detailShipment.consignor.country||'—'}</span></div>
+                <div className="dp-row"><span className="dp-key">Tel</span><span className="dp-val">{detailShipment.consignor.tel||'—'}</span></div>
+                <div className="dp-row"><span className="dp-key">Email</span><span className="dp-val" style={{ color:'var(--blue)' }}>{detailShipment.consignor.email||'—'}</span></div>
+              </div>
+            ) : (
+              <div className="dp-section">
+                <div className="dp-section-title">Contact</div>
+                <div className="dp-row"><span className="dp-key">Name</span><span className="dp-val">{detailShipment.contact}</span></div>
+                <div className="dp-row"><span className="dp-key">Email</span><span className="dp-val" style={{ color:'var(--blue)' }}>{detailShipment.email}</span></div>
+                <div className="dp-row"><span className="dp-key">Phone</span><span className="dp-val">{detailShipment.phone||'—'}</span></div>
+              </div>
+            )}
+
+            {/* Consignee */}
+            {detailShipment.consignee && (
+              <div className="dp-section">
+                <div className="dp-section-title">Consignee (Recipient)</div>
+                <div className="dp-row"><span className="dp-key">Company</span><span className="dp-val">{detailShipment.consignee.companyName}</span></div>
+                <div className="dp-row"><span className="dp-key">Name</span><span className="dp-val">{detailShipment.consignee.contactName||'—'}</span></div>
+                <div className="dp-row"><span className="dp-key">Address</span><span className="dp-val" style={{ textAlign:'right',maxWidth:180 }}>{detailShipment.consignee.streetAddress}, {detailShipment.consignee.cityTown}</span></div>
+                <div className="dp-row"><span className="dp-key">Country</span><span className="dp-val">{detailShipment.consignee.country||'—'}</span></div>
+                <div className="dp-row"><span className="dp-key">Tel</span><span className="dp-val">{detailShipment.consignee.tel||'—'}</span></div>
+                <div className="dp-row"><span className="dp-key">Email</span><span className="dp-val" style={{ color:'var(--blue)' }}>{detailShipment.consignee.email||'—'}</span></div>
+              </div>
+            )}
 
             {/* Timeline */}
             <div className="dp-section"><div className="dp-section-title">Tracking Timeline</div></div>
@@ -427,6 +469,12 @@ export default function Shipments() {
             <div className="dp-section">
               <div className="dp-section-title" style={{ marginBottom:10 }}>Actions</div>
               <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8 }}>
+                <button className="btn primary" style={{ justifyContent:'center',gridColumn:'1 / -1' }} onClick={() => setPrintShipment(detailShipment)}>
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ width:13,height:13 }}>
+                    <path d="M4 6V2h8v4M2 6h12a1 1 0 011 1v5a1 1 0 01-1 1h-2v2H4v-2H2a1 1 0 01-1-1V7a1 1 0 011-1z"/>
+                  </svg>
+                  Print Airwaybill
+                </button>
                 <button className="btn" style={{ justifyContent:'center' }} onClick={() => updateStatus(detailShipment.id,'transit')}>Mark In Transit</button>
                 <button className="btn" style={{ justifyContent:'center' }} onClick={() => updateStatus(detailShipment.id,'delivered')}>Mark Delivered</button>
                 <button className="btn" style={{ justifyContent:'center' }} onClick={() => updateStatus(detailShipment.id,'delayed')}>Mark Delayed</button>
