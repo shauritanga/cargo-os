@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { Shipment, Booking, FleetVehicle, Route, Warehouse, PageId } from '../types';
-import { genShipments, genBookings, genFleet, ROUTE_DATA, genWarehouses } from '../data/mock';
+import { genBookings, genFleet, ROUTE_DATA, genWarehouses } from '../data/mock';
+import { fetchShipments } from '../lib/api';
 
 interface Toast {
   message: string;
@@ -24,6 +25,8 @@ interface AppState {
   activePage: PageId;
   sidebarCollapsed: boolean;
   shipments: Shipment[];
+  shipmentsLoading: boolean;
+  shipmentsError: string | null;
   bookings: Booking[];
   fleet: FleetVehicle[];
   routes: Route[];
@@ -39,6 +42,7 @@ interface AppActions {
   setSidebarCollapsed: (v: boolean) => void;
   toggleSidebar: () => void;
   setShipments: React.Dispatch<React.SetStateAction<Shipment[]>>;
+  reloadShipments: () => Promise<void>;
   setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
   setFleet: React.Dispatch<React.SetStateAction<FleetVehicle[]>>;
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
@@ -54,7 +58,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('dark');
   const [activePage, setActivePage] = useState<PageId>('shipments');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [shipments, setShipments] = useState<Shipment[]>(() => genShipments(48));
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [shipmentsLoading, setShipmentsLoading] = useState(true);
+  const [shipmentsError, setShipmentsError] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>(() => genBookings(22));
   const [fleet, setFleet] = useState<FleetVehicle[]>(() => genFleet(24));
   const [routes, setRoutes] = useState<Route[]>([...ROUTE_DATA]);
@@ -71,6 +77,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   const awbCounterRef = React.useRef(1);
+
+  const reloadShipments = useCallback(async () => {
+    setShipmentsLoading(true);
+    setShipmentsError(null);
+    try {
+      const data = await fetchShipments();
+      setShipments(data);
+    } catch (e: any) {
+      setShipmentsError(e.message ?? 'Failed to load shipments');
+    } finally {
+      setShipmentsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { reloadShipments(); }, [reloadShipments]);
 
   const nextAwbNumber = useCallback((): string => {
     const counter = awbCounterRef.current;
@@ -102,9 +123,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={{
       theme, activePage, sidebarCollapsed,
-      shipments, bookings, fleet, routes, warehouses, toast, companySettings,
+      shipments, shipmentsLoading, shipmentsError,
+      bookings, fleet, routes, warehouses, toast, companySettings,
       setTheme, toggleTheme, setActivePage, setSidebarCollapsed, toggleSidebar,
-      setShipments, setBookings, setFleet, setRoutes, setWarehouses, showToast,
+      setShipments, reloadShipments, setBookings, setFleet, setRoutes, setWarehouses, showToast,
       setCompanySettings, nextAwbNumber,
     }}>
       {children}

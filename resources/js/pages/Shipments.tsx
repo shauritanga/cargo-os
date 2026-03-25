@@ -5,6 +5,7 @@ import Pagination from '../components/shared/Pagination';
 import { ModeIcon } from '../components/shared/ModeIcon';
 import AirwaybillPrint from '../components/shared/AirwaybillPrint';
 import { fmtDate } from '../data/mock';
+import { patchShipmentStatus, deleteShipmentApi, bulkUpdateApi, bulkDeleteApi } from '../lib/api';
 import type { Shipment, ShipmentStatus, TransportMode, Column, TimelineStep } from '../types';
 
 const PER_PAGE = 10;
@@ -39,7 +40,7 @@ const INIT_COLUMNS: Column[] = [
 ];
 
 export default function Shipments() {
-  const { shipments, setShipments, companySettings } = useApp();
+  const { shipments, setShipments, reloadShipments, shipmentsLoading, shipmentsError, companySettings, showToast } = useApp();
   const [columns, setColumns] = useState<Column[]>(INIT_COLUMNS);
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -61,7 +62,7 @@ export default function Shipments() {
         if (statusFilter !== 'all' && s.status !== statusFilter) return false;
         if (modeFilter !== 'all' && s.mode !== modeFilter) return false;
         if (typeFilter !== 'all' && s.type !== typeFilter) return false;
-        if (q && !`${s.id} ${s.customer} ${s.origin} ${s.dest} ${s.cargoType ?? ''}`.toLowerCase().includes(q)) return false;
+        if (q && !`${s.awbNumber ?? s.id} ${s.customer} ${s.origin} ${s.dest} ${s.cargoType ?? ''}`.toLowerCase().includes(q)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -91,26 +92,56 @@ export default function Shipments() {
   function toggleAll(checked: boolean) {
     setSelectedIds(() => { const n = new Set<string>(); if (checked) pageItems.forEach(s => n.add(s.id)); return n; });
   }
-  function bulkUpdateStatus(status: ShipmentStatus) {
+  async function bulkUpdateStatus(status: ShipmentStatus) {
+    const ids = [...selectedIds];
+    // Optimistic update
     setShipments(prev => prev.map(s => selectedIds.has(s.id) ? { ...s, status } : s));
     setSelectedIds(new Set());
+    try {
+      await bulkUpdateApi(ids, status);
+    } catch {
+      showToast('Bulk update failed', 'red');
+      reloadShipments();
+    }
   }
-  function bulkDelete() {
+  async function bulkDelete() {
     if (!confirm(`Delete ${selectedIds.size} shipment(s)?`)) return;
+    const ids = [...selectedIds];
+    // Optimistic update
     setShipments(prev => prev.filter(s => !selectedIds.has(s.id)));
     setSelectedIds(new Set());
+    try {
+      await bulkDeleteApi(ids);
+    } catch {
+      showToast('Bulk delete failed', 'red');
+      reloadShipments();
+    }
   }
-  function updateStatus(id: string, status: ShipmentStatus) {
+  async function updateStatus(id: string, status: ShipmentStatus) {
+    // Optimistic update
     setShipments(prev => prev.map(s => s.id === id ? { ...s, status } : s));
+    try {
+      await patchShipmentStatus(id, status);
+    } catch {
+      showToast('Status update failed', 'red');
+      reloadShipments();
+    }
   }
-  function deleteShipment(id: string) {
+  async function deleteShipment(id: string) {
     if (!confirm('Delete this shipment?')) return;
+    // Optimistic update
     setShipments(prev => prev.filter(s => s.id !== id));
     setDetailId(null);
+    try {
+      await deleteShipmentApi(id);
+    } catch {
+      showToast('Delete failed', 'red');
+      reloadShipments();
+    }
   }
   function exportCSV() {
     const header = ['ID','Origin','Destination','Customer','Weight','Mode','Type','Containers','ETA','Created','Status'];
-    const rows = filtered.map(s => [s.id,s.origin,s.dest,s.customer,s.weight,s.mode,s.type,s.containers||'',fmtDate(s.eta),fmtDate(s.created),STATUS_LABEL[s.status]]);
+    const rows = filtered.map(s => [s.awbNumber||s.id,s.origin,s.dest,s.customer,s.weight,s.mode,s.type,s.containers||'',fmtDate(s.eta),fmtDate(s.created),STATUS_LABEL[s.status]]);
     const csv = [header,...rows].map(r=>r.join(',')).join('\n');
     const blob = new Blob([csv],{type:'text/csv'});
     const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='shipments.csv'; a.click();
@@ -136,6 +167,24 @@ export default function Shipments() {
     { label:'Pending / Customs', value: counts.pending + counts.customs, color:'var(--amber)', changeClass:null, change:null, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l2.5 2.5"/></svg>, key:'pending' },
     { label:'Delayed',         value: counts.delayed,   color:'var(--red)',   changeClass:null, change:null, icon: <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 2L1.5 15h15L9 2z"/><path d="M9 7v4M9 13.5v.5"/></svg>, key:'delayed' },
   ];
+
+  if (shipmentsLoading) return (
+    <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+      <div style={{ textAlign: 'center', color: 'var(--text-3)' }}>
+        <svg style={{ width: 32, height: 32, marginBottom: 12, animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <div style={{ fontSize: 14 }}>Loading shipments…</div>
+      </div>
+    </div>
+  );
+
+  if (shipmentsError) return (
+    <div className="content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 14, color: 'var(--red)', marginBottom: 12 }}>⚠ {shipmentsError}</div>
+        <button className="btn primary" onClick={reloadShipments}>Retry</button>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -266,7 +315,7 @@ export default function Shipments() {
                         onChange={e => toggleRow(s.id, e.target.checked)} onClick={e => e.stopPropagation()}/>
                     </td>
                     {visibleCols.map(c => {
-                      if (c.key === 'id') return <td key="id" className="mono">{s.id}</td>;
+                      if (c.key === 'id') return <td key="id" className="mono">{s.awbNumber || s.id}</td>;
                       if (c.key === 'type') return <td key="type"><span style={{ display:'inline-flex',alignItems:'center',gap:4,fontSize:11,fontWeight:600,padding:'2px 8px',borderRadius:20,background:isIntl?'var(--blue-dim)':'var(--green-dim)',color:isIntl?'var(--blue)':'var(--green)' }}>{isIntl?'🌐 Intl':'🏠 Local'}</span></td>;
                       if (c.key === 'route') return <td key="route"><span style={{fontWeight:500}}>{s.origin}</span><span className="route-arrow"> → </span><span style={{fontWeight:500}}>{s.dest}</span><div className="text-muted">{s.originCountry} → {s.destCountry}</div></td>;
                       if (c.key === 'customer') return <td key="customer">{s.customer}<div className="text-muted">{s.email}</div></td>;

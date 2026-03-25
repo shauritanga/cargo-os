@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import SearchableSelect from './SearchableSelect';
-import { TZ_REGIONS, randInt, randItem } from '../../data/mock';
+import { TZ_REGIONS } from '../../data/mock';
 import type { Shipment, Party } from '../../types';
 
 interface Props {
@@ -23,16 +23,49 @@ const emptyParty = (): Party => ({
   companyName: '', streetAddress: '', cityTown: '', country: '', tel: '', email: '', contactName: '',
 });
 
-function PartyFields({ title, value, onChange }: {
+function PartyFields({ title, value, onChange, countryOptions }: {
   title: string;
   value: Party;
   onChange: (p: Party) => void;
+  countryOptions: { label: string; value: string }[];
 }) {
+  const [cities, setCities] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchCities(value.country).then(setCities);
+  }, [value.country]);
+
   const f = (field: keyof Party) => (e: React.ChangeEvent<HTMLInputElement>) =>
     onChange({ ...value, [field]: e.target.value });
+
   return (
     <>
       <div className="form-divider">{title}</div>
+      {/* Row 1: Country | City/Town — searchable selects */}
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Country</label>
+          <SearchableSelect
+            options={countryOptions}
+            value={value.country}
+            placeholder="Select country…"
+            searchPlaceholder="Search country…"
+            onChange={code => onChange({ ...value, country: code, cityTown: '' })}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">City / Town</label>
+          <SearchableSelect
+            options={cities.map(c => ({ label: c, value: c }))}
+            value={value.cityTown}
+            placeholder="Select or type…"
+            searchPlaceholder="Search or type city…"
+            onChange={(_, label) => onChange({ ...value, cityTown: label })}
+            onFreeType={v => onChange({ ...value, cityTown: v })}
+          />
+        </div>
+      </div>
+      {/* Row 2: Company Name | Contact Name */}
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Company Name</label>
@@ -43,25 +76,19 @@ function PartyFields({ title, value, onChange }: {
           <input className="form-input" placeholder="Full name" value={value.contactName} onChange={f('contactName')} />
         </div>
       </div>
+      {/* Row 3: Street Address | Tel */}
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Street Address</label>
           <input className="form-input" placeholder="Street / area" value={value.streetAddress} onChange={f('streetAddress')} />
         </div>
         <div className="form-group">
-          <label className="form-label">City / Town</label>
-          <input className="form-input" placeholder="City or town" value={value.cityTown} onChange={f('cityTown')} />
-        </div>
-      </div>
-      <div className="form-row">
-        <div className="form-group">
-          <label className="form-label">Country</label>
-          <input className="form-input" placeholder="Country" value={value.country} onChange={f('country')} />
-        </div>
-        <div className="form-group">
           <label className="form-label">Tel</label>
           <input className="form-input" placeholder="+255 700 000 000" value={value.tel} onChange={f('tel')} />
         </div>
+      </div>
+      {/* Row 4: Email (full width) */}
+      <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
         <div className="form-group">
           <label className="form-label">Email</label>
           <input className="form-input" type="email" placeholder="email@company.com" value={value.email} onChange={f('email')} />
@@ -72,7 +99,7 @@ function PartyFields({ title, value, onChange }: {
 }
 
 export default function NewShipmentModal({ onClose }: Props) {
-  const { setShipments, showToast, setActivePage, nextAwbNumber } = useApp();
+  const { setShipments, showToast, setActivePage } = useApp();
   const [formType, setFormType] = useState<'international' | 'domestic'>('international');
   const [originCountry, setOriginCountry] = useState('');
   const [destCountry, setDestCountry] = useState('');
@@ -107,70 +134,97 @@ export default function NewShipmentModal({ onClose }: Props) {
   const [contents, setContents] = useState('');
   const [cargoType, setCargoType] = useState('General');
   const [declaredValue, setDeclaredValue] = useState('');
-  const [notes, setNotes] = useState('');
-
-  // International
-  const [incoterm, setIncoterm] = useState('FOB');
-  const [containers, setContainers] = useState('');
-  const [hsCode, setHsCode] = useState('');
   const [insurance, setInsurance] = useState('');
-  const [broker, setBroker] = useState('');
-  const [blNumber, setBlNumber] = useState('');
-
-  // Domestic
-  const [driver, setDriver] = useState('');
-  const [vehicle, setVehicle] = useState('');
-  const [distance, setDistance] = useState('');
-  const [window_, setWindow] = useState('');
-  const [pickup, setPickup] = useState('');
-  const [delivery, setDelivery] = useState('');
+  const [notes, setNotes] = useState('');
 
   // Consignor & Consignee
   const [consignor, setConsignor] = useState<Party>(emptyParty());
   const [consignee, setConsignee] = useState<Party>(emptyParty());
 
+  const [submitting, setSubmitting] = useState(false);
   const cityToOption = (c: string) => ({ label: c, value: c });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!origin || !dest || !consignor.companyName) {
       alert('Please fill in Origin, Destination, and Consignor Company Name.');
       return;
     }
-    const awbNumber = nextAwbNumber();
-    const etaDate = eta ? new Date(eta) : new Date(Date.now() + randInt(5, 30) * 86400000);
-    const prefixes = formType === 'international' ? ['SHG', 'DXB', 'SGP', 'RTM', 'INT'] : ['DOM', 'LOC', 'TZ', 'DAR', 'NBI'];
-    const base: Shipment = {
-      id: `${randItem(prefixes)}-${String(Date.now()).slice(-5)}`,
-      type: formType,
-      origin, originCountry: originCountry || 'TZ',
-      dest, destCountry: destCountry || 'TZ',
-      customer: consignor.companyName,
-      weight: parseInt(weight) || randInt(200, 5000),
-      mode: mode as Shipment['mode'],
-      cargoType: cargoType as Shipment['cargoType'],
-      status: 'pending',
-      eta: etaDate,
-      created: new Date(),
-      contact: consignor.contactName || '—',
-      email: consignor.email || '—',
-      phone: consignor.tel || '—',
-      notes,
-      declaredValue: declaredValue || '—',
-      awbNumber,
-      pieces: parseInt(pieces) || 1,
-      contents: contents || '—',
-      consignor,
-      consignee,
-    };
 
-    const newShipment: Shipment = formType === 'international'
-      ? { ...base, containers: parseInt(containers) || 1, incoterm, hsCode: hsCode || '—', insurance: insurance || '—', customsBroker: broker || '—', blNumber: blNumber || '—', vessel: 'TBD', port: 'TBD', originPort: 'TBD', dutyAmount: '—' }
-      : { ...base, driver: driver || '—', vehicle: vehicle || '—', distanceKm: parseInt(distance) || 0, deliveryWindow: window_ || '—', pickupAddress: pickup || '—', deliveryAddress: delivery || '—', podRequired: true };
+    setSubmitting(true);
+    try {
+      const payload = {
+        type: formType,
+        origin,
+        origin_country: originCountry || 'TZ',
+        dest,
+        dest_country: destCountry || 'TZ',
+        customer: consignor.companyName,
+        weight: parseFloat(weight) || null,
+        mode,
+        cargo_type: cargoType,
+        eta: eta || null,
+        contact: consignor.contactName || null,
+        email: consignor.email || null,
+        phone: consignor.tel || null,
+        notes: notes || null,
+        declared_value: declaredValue || null,
+        insurance: insurance || null,
+        pieces: parseInt(pieces) || 1,
+        contents: contents || null,
+        consignor,
+        consignee,
+      };
 
-    setShipments(prev => [newShipment, ...prev]);
-    showToast(`Shipment ${awbNumber} created`, 'green');
-    setActivePage('shipments');
-    onClose();
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || 'Failed to create shipment');
+      }
+
+      const saved = await res.json();
+
+      // Map backend response to frontend Shipment type and prepend to list
+      const newShipment: Shipment = {
+        id: String(saved.id),
+        awbNumber: saved.awb_number,
+        type: saved.type,
+        origin: saved.origin,
+        originCountry: saved.origin_country || 'TZ',
+        dest: saved.dest,
+        destCountry: saved.dest_country || 'TZ',
+        customer: saved.customer,
+        weight: saved.weight || 0,
+        mode: saved.mode as Shipment['mode'],
+        cargoType: saved.cargo_type as Shipment['cargoType'],
+        status: saved.status,
+        eta: new Date(saved.eta || Date.now()),
+        created: new Date(saved.created_at),
+        contact: saved.contact || '—',
+        email: saved.email || '—',
+        phone: saved.phone || '—',
+        notes: saved.notes || '',
+        declaredValue: saved.declared_value || '—',
+        insurance: saved.insurance || '—',
+        pieces: saved.pieces || 1,
+        contents: saved.contents || '—',
+        consignor: saved.consignor,
+        consignee: saved.consignee,
+      };
+
+      setShipments(prev => [newShipment, ...prev]);
+      showToast(`Shipment ${saved.awb_number} created`, 'green');
+      setActivePage('shipments');
+      onClose();
+    } catch (err: any) {
+      showToast(err.message || 'Error creating shipment', 'red');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -200,56 +254,88 @@ export default function NewShipmentModal({ onClose }: Props) {
 
           {/* ROUTE */}
           <div className="form-divider">Route</div>
-          <div className="form-row">
-            {formType === 'international' && (
-              <div className="form-group">
-                <label className="form-label">Origin Country</label>
-                <SearchableSelect
-                  options={countryOptions}
-                  value={originCountry}
-                  placeholder="Select country…"
-                  searchPlaceholder="Search country…"
-                  onChange={v => { setOriginCountry(v); setOrigin(''); }}
-                />
+
+          {formType === 'international' ? (
+            <>
+              {/* International: Country | City per row */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Origin Country</label>
+                  <SearchableSelect
+                    options={countryOptions}
+                    value={originCountry}
+                    placeholder="Select country…"
+                    searchPlaceholder="Search country…"
+                    onChange={v => { setOriginCountry(v); setOrigin(''); }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Origin City</label>
+                  <SearchableSelect
+                    options={originCities.map(cityToOption)}
+                    value={origin}
+                    placeholder="Select or type…"
+                    searchPlaceholder="Search or type city…"
+                    onChange={(_, label) => setOrigin(label)}
+                    onFreeType={v => setOrigin(v)}
+                  />
+                </div>
               </div>
-            )}
-            <div className="form-group">
-              <label className="form-label">{formType === 'domestic' ? 'Origin Region' : 'Origin City'}</label>
-              <SearchableSelect
-                options={originCities.map(cityToOption)}
-                value={origin}
-                placeholder="Select or type…"
-                searchPlaceholder="Search or type city…"
-                onChange={(_, label) => setOrigin(label)}
-                onFreeType={v => setOrigin(v)}
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            {formType === 'international' && (
-              <div className="form-group">
-                <label className="form-label">Destination Country</label>
-                <SearchableSelect
-                  options={countryOptions}
-                  value={destCountry}
-                  placeholder="Select country…"
-                  searchPlaceholder="Search country…"
-                  onChange={v => { setDestCountry(v); setDest(''); }}
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Destination Country</label>
+                  <SearchableSelect
+                    options={countryOptions}
+                    value={destCountry}
+                    placeholder="Select country…"
+                    searchPlaceholder="Search country…"
+                    onChange={v => { setDestCountry(v); setDest(''); }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Destination City</label>
+                  <SearchableSelect
+                    options={destCities.map(cityToOption)}
+                    value={dest}
+                    placeholder="Select or type…"
+                    searchPlaceholder="Search or type city…"
+                    onChange={(_, label) => setDest(label)}
+                    onFreeType={v => setDest(v)}
+                  />
+                </div>
               </div>
-            )}
-            <div className="form-group">
-              <label className="form-label">{formType === 'domestic' ? 'Destination Region' : 'Destination City'}</label>
-              <SearchableSelect
-                options={destCities.map(cityToOption)}
-                value={dest}
-                placeholder="Select or type…"
-                searchPlaceholder="Search or type city…"
-                onChange={(_, label) => setDest(label)}
-                onFreeType={v => setDest(v)}
-              />
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Domestic: Origin Region | Destination Region side by side */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Origin Region</label>
+                  <SearchableSelect
+                    options={originCities.map(cityToOption)}
+                    value={origin}
+                    placeholder="Select or type…"
+                    searchPlaceholder="Search region…"
+                    onChange={(_, label) => setOrigin(label)}
+                    onFreeType={v => setOrigin(v)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Destination Region</label>
+                  <SearchableSelect
+                    options={destCities.map(cityToOption)}
+                    value={dest}
+                    placeholder="Select or type…"
+                    searchPlaceholder="Search region…"
+                    onChange={(_, label) => setDest(label)}
+                    onFreeType={v => setDest(v)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Transport Mode & ETA — shared for both types */}
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Transport Mode</label>
@@ -269,7 +355,8 @@ export default function NewShipmentModal({ onClose }: Props) {
 
           {/* CARGO */}
           <div className="form-divider">Cargo</div>
-          <div className="form-row">
+          {/* Row 1: Pieces | Weight | Cargo Type */}
+          <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
             <div className="form-group">
               <label className="form-label">Pieces</label>
               <input className="form-input" type="number" placeholder="e.g. 1" value={pieces} onChange={e => setPieces(e.target.value)} />
@@ -285,61 +372,30 @@ export default function NewShipmentModal({ onClose }: Props) {
               </select>
             </div>
           </div>
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 2 }}>
+          {/* Row 2: Contents (full width) */}
+          <div className="form-row" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="form-group">
               <label className="form-label">Contents / Description</label>
               <input className="form-input" placeholder="e.g. Box of Books, Electronics, etc." value={contents} onChange={e => setContents(e.target.value)} />
             </div>
+          </div>
+          {/* Row 3: Declared Value | Insurance */}
+          <div className="form-row">
             <div className="form-group">
               <label className="form-label">Declared Value</label>
               <input className="form-input" placeholder="e.g. USD 5,000" value={declaredValue} onChange={e => setDeclaredValue(e.target.value)} />
             </div>
+            <div className="form-group">
+              <label className="form-label">Insurance</label>
+              <input className="form-input" placeholder="e.g. USD 50,000" value={insurance} onChange={e => setInsurance(e.target.value)} />
+            </div>
           </div>
 
-          {/* INTERNATIONAL DETAILS */}
-          {formType === 'international' && (
-            <>
-              <div className="form-divider">International Details</div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Incoterm</label>
-                  <select className="form-select" value={incoterm} onChange={e => setIncoterm(e.target.value)}>
-                    {['FOB', 'CIF', 'DDP', 'EXW', 'DAP', 'FCA', 'CFR'].map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="form-group"><label className="form-label">Containers</label><input className="form-input" type="number" placeholder="e.g. 2" value={containers} onChange={e => setContainers(e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">HS Code</label><input className="form-input" placeholder="e.g. 8471.30" value={hsCode} onChange={e => setHsCode(e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">Insurance</label><input className="form-input" placeholder="e.g. $50,000" value={insurance} onChange={e => setInsurance(e.target.value)} /></div>
-              </div>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Customs Broker</label><input className="form-input" placeholder="Broker name" value={broker} onChange={e => setBroker(e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">B/L Number</label><input className="form-input" placeholder="e.g. BL123456" value={blNumber} onChange={e => setBlNumber(e.target.value)} /></div>
-              </div>
-            </>
-          )}
-
-          {/* DOMESTIC DETAILS */}
-          {formType === 'domestic' && (
-            <>
-              <div className="form-divider">Domestic Details</div>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Driver</label><input className="form-input" placeholder="Driver name" value={driver} onChange={e => setDriver(e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">Vehicle Plate</label><input className="form-input" placeholder="e.g. T 201 BCD" value={vehicle} onChange={e => setVehicle(e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">Distance (km)</label><input className="form-input" type="number" placeholder="e.g. 450" value={distance} onChange={e => setDistance(e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">Delivery Window</label><input className="form-input" placeholder="09:00 – 14:00" value={window_} onChange={e => setWindow(e.target.value)} /></div>
-              </div>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Pickup Address</label><input className="form-input" placeholder="Street / area" value={pickup} onChange={e => setPickup(e.target.value)} /></div>
-                <div className="form-group"><label className="form-label">Delivery Address</label><input className="form-input" placeholder="Street / area" value={delivery} onChange={e => setDelivery(e.target.value)} /></div>
-              </div>
-            </>
-          )}
-
           {/* CONSIGNOR */}
-          <PartyFields title="Consignor (Sender)" value={consignor} onChange={setConsignor} />
+          <PartyFields title="Consignor (Sender)" value={consignor} onChange={setConsignor} countryOptions={countryOptions} />
 
           {/* CONSIGNEE */}
-          <PartyFields title="Consignee (Recipient)" value={consignee} onChange={setConsignee} />
+          <PartyFields title="Consignee (Recipient)" value={consignee} onChange={setConsignee} countryOptions={countryOptions} />
 
           {/* NOTES */}
           <div className="form-divider">Special Instructions</div>
@@ -349,8 +405,10 @@ export default function NewShipmentModal({ onClose }: Props) {
         </div>
 
         <div className="modal-footer">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn primary" onClick={handleSubmit}>Create Shipment</button>
+          <button className="btn" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button className="btn primary" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? 'Creating…' : 'Create Shipment'}
+          </button>
         </div>
       </div>
     </div>
