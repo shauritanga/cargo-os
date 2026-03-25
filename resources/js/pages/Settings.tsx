@@ -58,7 +58,7 @@ export default function Settings() {
         </div>
 
         {/* CONTENT PANEL */}
-        <div className="card">
+        <div className="card" style={{ padding: '24px' }}>
 
           {/* PROFILE */}
           {activeTab === 'profile' && (
