@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useApp } from "../context/AppContext";
 import type { Theme, CompanySettings } from "../context/AppContext";
 
@@ -16,6 +16,23 @@ const THEMES: { value: Theme; label: string; desc: string }[] = [
         desc: "Light brand theme",
     },
 ];
+
+type SettingsTab =
+    | "profile"
+    | "company"
+    | "appearance"
+    | "notifications"
+    | "security";
+
+function isSettingsTab(value: unknown): value is SettingsTab {
+    return (
+        value === "profile" ||
+        value === "company" ||
+        value === "appearance" ||
+        value === "notifications" ||
+        value === "security"
+    );
+}
 
 export default function Settings() {
     const { theme, setTheme, showToast, companySettings, setCompanySettings } =
@@ -44,9 +61,42 @@ export default function Settings() {
         overdueReminder: true,
         weeklyReport: true,
     });
-    const [activeTab, setActiveTab] = useState<
-        "profile" | "company" | "appearance" | "notifications" | "security"
-    >("profile");
+    const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+
+    useEffect(() => {
+        const applyTabTarget = (tab: unknown) => {
+            if (isSettingsTab(tab)) {
+                setActiveTab(tab);
+            }
+        };
+
+        try {
+            const storedTab = window.sessionStorage.getItem(
+                "cargoos:settings-tab",
+            );
+            applyTabTarget(storedTab);
+            window.sessionStorage.removeItem("cargoos:settings-tab");
+        } catch {
+            // Ignore storage errors in restricted browser contexts.
+        }
+
+        const handleTabEvent = (event: Event) => {
+            const detail = (event as CustomEvent<{ tab?: unknown }>).detail;
+            applyTabTarget(detail?.tab);
+        };
+
+        window.addEventListener(
+            "cargoos:open-settings-tab",
+            handleTabEvent as EventListener,
+        );
+
+        return () => {
+            window.removeEventListener(
+                "cargoos:open-settings-tab",
+                handleTabEvent as EventListener,
+            );
+        };
+    }, []);
 
     const save = (section: string) => {
         if (section === "Company") {

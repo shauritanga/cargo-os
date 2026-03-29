@@ -86,7 +86,7 @@ class CountriesCitiesSeeder extends Seeder
             ['name' => 'Sweden', 'code' => 'SE', 'cities' => ['Stockholm', 'Gothenburg', 'Malmö', 'Uppsala', 'Linköping', 'Helsingborg']],
             ['name' => 'Switzerland', 'code' => 'CH', 'cities' => ['Zurich', 'Geneva', 'Basel', 'Bern', 'Lausanne', 'Lugano']],
             ['name' => 'Taiwan', 'code' => 'TW', 'cities' => ['Taipei', 'Kaohsiung', 'Taichung', 'Tainan', 'Hsinchu', 'Keelung']],
-            ['name' => 'Tanzania', 'code' => 'TZ', 'cities' => ['Arusha', 'Dar es Salaam', 'Dodoma', 'Geita', 'Iringa', 'Kagera', 'Katavi', 'Kigoma', 'Kilimanjaro', 'Lindi', 'Manyara', 'Mara', 'Mbeya', 'Mjini Magharibi', 'Morogoro', 'Mtwara', 'Mwanza', 'Njombe', 'Pemba North', 'Pemba South', 'Pwani', 'Rukwa', 'Ruvuma', 'Shinyanga', 'Simiyu', 'Singida', 'Songwe', 'Tabora', 'Tanga', 'Zanzibar North', 'Zanzibar South', 'Zanzibar West']],
+            ['name' => 'Tanzania', 'code' => 'TZ', 'cities' => ['Dar es Salaam', 'Dodoma', 'Arusha', 'Mwanza', 'Mbeya', 'Morogoro', 'Tanga', 'Kigoma', 'Tabora', 'Iringa', 'Moshi', 'Songea', 'Musoma', 'Bukoba', 'Sumbawanga', 'Singida', 'Shinyanga', 'Kahama', 'Geita', 'Bariadi', 'Njombe', 'Mpanda', 'Lindi', 'Mtwara Mikindani', 'Bagamoyo', 'Kibaha', 'Chalinze', 'Kisarawe', 'Mkuranga', 'Utete', 'Ikwiriri', 'Kibiti', 'Kilindoni', 'Mlandizi', 'Ifakara', 'Kilosa', 'Kidatu', 'Mlimba', 'Mahenge', 'Gairo', 'Mvomero', 'Dumila', 'Mikumi', 'Biharamulo', 'Muleba', 'Ngara', 'Benaco', 'Kyaka', 'Karagwe', 'Kayanga', 'Kyerwa', 'Kamachumu', 'Missenyi', 'Kakonko', 'Kibondo', 'Kasulu', 'Uvinza', 'Buhigwe', 'Manyovu', 'Mwandiga', 'Ilunde', 'Mlele', 'Inyonga', 'Namanyere', 'Matai', 'Laela', 'Mbinga', 'Peramiho', 'Namtumbo', 'Tunduru', 'Mbambabay', 'Liwale', 'Nachingwea', 'Ruangwa', 'Kilwa Kivinje', 'Kilwa Masoko', 'Masasi', 'Newala Kisimani', 'Tandahimba', 'Nanganga', 'Mikindani', 'Nanyamba', 'Babati', 'Mbulu', 'Katesh', 'Dongobesh', 'Kibaya', 'Orkesumet', 'Bashanet', 'Arumeru', 'Usa River', 'Ngaramtoni', 'Monduli', 'Namanga', 'Longido', 'Karatu', 'Mto wa Mbu', 'Loliondo', 'Wasso', 'Mugumu', 'Tarime', 'Bunda', 'Butiama', 'Sirari', 'Nyamuswa', 'Nansio', 'Magu', 'Misungwi', 'Kwimba', 'Sengerema', 'Itilima', 'Busega', 'Maswa', 'Meatu', 'Malampaka', 'Nyalikungu', 'Chato', 'Bukombe', 'Mbogwe', 'Nyanghwale', 'Busanda', 'Mabuki', 'Mabatini', 'Mpwapwa', 'Kongwa', 'Kondoa', 'Bahi', 'Chemba', 'Chamwino', 'Manyoni', 'Itigi', 'Kiomboi', 'Mkalama', 'Iguguno', 'Nzega', 'Igunga', 'Urambo', 'Kaliua', 'Sikonge', 'Ushetu', 'Msalala', 'Kishapu', 'Mafinga', 'Kilolo', 'Mufindi', 'Makambako', 'Wangingombe', 'Makete', 'Ludewa', 'Tukuyu', 'Kyela', 'Mbarali', 'Chunya', 'Tunduma', 'Vwawa', 'Mbozi', 'Momba', 'Mtambaswala', 'Nanyumbu', 'Chake Chake', 'Wete', 'Mkoani', 'Zanzibar City', 'Stone Town', 'Bububu', 'Mkokotoni', 'Kinyasini', 'Nungwi', 'Kendwa', 'Matemwe', 'Kiwengwa', 'Uroa', 'Chwaka', 'Michamvi', 'Paje', 'Bwejuu', 'Jambiani', 'Makunduchi', 'Kizimkazi', 'Koani', 'Chuini', 'Mangapwani', 'Mahonda', 'Dunga', 'Fumba', 'Pongwe', 'Pwani Mchangani']],
             ['name' => 'Thailand', 'code' => 'TH', 'cities' => ['Bangkok', 'Chiang Mai', 'Pattaya', 'Hat Yai', 'Phuket', 'Laem Chabang', 'Rayong']],
             ['name' => 'Tunisia', 'code' => 'TN', 'cities' => ['Tunis', 'Sfax', 'Sousse', 'Bizerte', 'Radès', 'Gabès']],
             ['name' => 'Turkey', 'code' => 'TR', 'cities' => ['Istanbul', 'Ankara', 'Izmir', 'Bursa', 'Antalya', 'Mersin', 'Trabzon', 'Iskenderun', 'Gemlik']],
@@ -111,6 +111,11 @@ class CountriesCitiesSeeder extends Seeder
             ]);
 
             $countryRecord = \DB::table('countries')->where('code', $country['code'])->value('id');
+
+            if ($country['code'] === 'TZ') {
+                // Replace prior Tanzania seed entries (older region placeholders) with town/city data.
+                \DB::table('cities')->where('country_id', $countryRecord)->delete();
+            }
 
             $cityRows = array_map(fn($city) => [
                 'country_id' => $countryRecord,

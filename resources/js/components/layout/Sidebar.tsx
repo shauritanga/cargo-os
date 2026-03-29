@@ -1,155 +1,682 @@
-import React from 'react';
-import { useApp } from '../../context/AppContext';
-import type { PageId } from '../../types';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useApp } from "../../context/AppContext";
+import type { PageId } from "../../types";
 
 interface NavItemProps {
-  pageId: PageId;
-  label: string;
-  badge?: number | string;
-  badgeColor?: string;
-  icon: React.ReactNode;
+    pageId: PageId;
+    label: string;
+    badge?: number | string;
+    badgeColor?: string;
+    icon: React.ReactNode;
+}
+
+interface DeferredPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{
+        outcome: "accepted" | "dismissed";
+        platform: string;
+    }>;
 }
 
 function NavItem({ pageId, label, badge, badgeColor, icon }: NavItemProps) {
-  const { activePage, setActivePage } = useApp();
-  const isActive = activePage === pageId;
-  return (
-    <div
-      className={`nav-item${isActive ? ' active' : ''}`}
-      onClick={() => setActivePage(pageId)}
-    >
-      <span className="nav-icon">{icon}</span>
-      <span className="nav-label">{label}</span>
-      {badge !== undefined && (
-        <span className="nav-badge" style={badgeColor ? { background: badgeColor } : undefined}>
-          {badge}
-        </span>
-      )}
-    </div>
-  );
+    const { activePage, setActivePage } = useApp();
+    const isActive = activePage === pageId;
+    return (
+        <div
+            className={`nav-item${isActive ? " active" : ""}`}
+            onClick={() => setActivePage(pageId)}
+        >
+            <span className="nav-icon">{icon}</span>
+            <span className="nav-label">{label}</span>
+            {badge !== undefined && (
+                <span
+                    className="nav-badge"
+                    style={badgeColor ? { background: badgeColor } : undefined}
+                >
+                    {badge}
+                </span>
+            )}
+        </div>
+    );
 }
 
 export default function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar, shipments, bookings } = useApp();
+    const {
+        sidebarCollapsed,
+        shipments,
+        bookings,
+        setActivePage,
+        hasRole,
+        currentUser,
+        logout,
+    } = useApp();
 
-  const transitCount = shipments.filter(s => s.status === 'transit' || s.status === 'delayed').length;
-  const pendingBookings = bookings.filter(b => b.status === 'new' || b.status === 'reviewing').length;
+    // PWA install prompt
+    const [installPrompt, setInstallPrompt] =
+        useState<DeferredPromptEvent | null>(null);
+    const [installed, setInstalled] = useState(false);
+    const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+    const [accountMenuPos, setAccountMenuPos] = useState({
+        left: 0,
+        bottom: 0,
+    });
+    const footerRef = useRef<HTMLDivElement | null>(null);
+    const panelRef = useRef<HTMLDivElement | null>(null);
 
-  return (
-    <aside className={`sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
-      <div className="sidebar-header">
-        <div className="logo-mark">
-          <img src="/logo.png" alt="RTEXPRESS" style={{ width: '24px', height: '24px', objectFit: 'cover', borderRadius: '50%' }} />
-        </div>
-        <span className="logo-text">RTEXPRESS</span>
-      </div>
+    const accountMenuStyle = useMemo(
+        () => ({
+            left: `${accountMenuPos.left}px`,
+            bottom: `${accountMenuPos.bottom}px`,
+            width: "210px",
+        }),
+        [accountMenuPos],
+    );
 
+    const updateAccountMenuPos = () => {
+        if (!footerRef.current) return;
 
-      <nav className="sidebar-nav">
-        <div className="nav-section-label">Operations</div>
+        const rect = footerRef.current.getBoundingClientRect();
+        const menuWidth = 240;
+        const rawLeft = rect.left;
+        const boundedLeft = Math.max(
+            8,
+            Math.min(rawLeft, window.innerWidth - menuWidth - 8),
+        );
 
-        <NavItem pageId="dashboard" label="Dashboard" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <rect x="1.5" y="1.5" width="6" height="6" rx="1.5"/>
-            <rect x="10.5" y="1.5" width="6" height="6" rx="1.5"/>
-            <rect x="1.5" y="10.5" width="6" height="6" rx="1.5"/>
-            <rect x="10.5" y="10.5" width="6" height="6" rx="1.5"/>
-          </svg>
-        }/>
+        setAccountMenuPos({
+            left: boundedLeft,
+            bottom: Math.max(8, window.innerHeight - rect.top + 8),
+        });
+    };
 
-        <NavItem pageId="shipments" label="Shipments" badge={transitCount || undefined} icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M2 4h14v10a1 1 0 01-1 1H3a1 1 0 01-1-1V4z"/>
-            <path d="M6 4V2.5A.5.5 0 016.5 2h5a.5.5 0 01.5.5V4"/>
-            <path d="M2 8h14"/>
-          </svg>
-        }/>
+    useEffect(() => {
+        const handler = (e: Event) => {
+            e.preventDefault();
+            setInstallPrompt(e as DeferredPromptEvent);
+        };
+        window.addEventListener("beforeinstallprompt", handler);
+        window.addEventListener("appinstalled", () => {
+            setInstalled(true);
+            setInstallPrompt(null);
+        });
+        // If already running as standalone PWA, mark as installed
+        if (window.matchMedia("(display-mode: standalone)").matches) {
+            setInstalled(true);
+        }
+        return () => window.removeEventListener("beforeinstallprompt", handler);
+    }, []);
 
-        <NavItem pageId="tracking" label="Track Shipment" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <circle cx="8" cy="8" r="6"/>
-            <path d="M13 13l4 4"/>
-            <path d="M6 8h4M8 6v4"/>
-          </svg>
-        }/>
+    useEffect(() => {
+        if (!accountMenuOpen) return;
 
-        <NavItem pageId="bookings" label="Bookings"
-          badge={pendingBookings > 0 ? pendingBookings : undefined}
-          badgeColor={pendingBookings > 0 ? 'var(--amber)' : undefined}
-          icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <rect x="2" y="3" width="14" height="13" rx="1.5"/>
-            <path d="M2 7h14"/>
-            <path d="M6 1v4M12 1v4"/>
-            <path d="M6 11h2M10 11h2M6 14h2"/>
-          </svg>
-        }/>
+        updateAccountMenuPos();
 
-        <NavItem pageId="fleet" label="Fleet" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <rect x="1" y="5" width="12" height="9" rx="1.5"/>
-            <path d="M13 8l3 2v4h-3V8z"/>
-            <circle cx="4.5" cy="14" r="1.5"/>
-            <circle cx="10.5" cy="14" r="1.5"/>
-            <circle cx="15" cy="14" r="1.5"/>
-          </svg>
-        }/>
+        const onOutsideClick = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (!target) return;
+            if (
+                panelRef.current?.contains(target) ||
+                footerRef.current?.contains(target)
+            ) {
+                return;
+            }
+            setAccountMenuOpen(false);
+        };
 
-        <NavItem pageId="routes" label="Routes" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <circle cx="4" cy="4" r="2"/>
-            <circle cx="14" cy="14" r="2"/>
-            <path d="M4 6c0 5 10 3 10 8"/>
-          </svg>
-        }/>
+        const onEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                setAccountMenuOpen(false);
+            }
+        };
 
-        <NavItem pageId="warehouses" label="Warehouses" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M2 8L9 2l7 6v8H2V8z"/>
-            <rect x="7" y="11" width="4" height="5"/>
-          </svg>
-        }/>
+        window.addEventListener("resize", updateAccountMenuPos);
+        window.addEventListener("scroll", updateAccountMenuPos, true);
+        document.addEventListener("mousedown", onOutsideClick);
+        document.addEventListener("keydown", onEscape);
 
-        <div className="nav-section-label" style={{ marginTop: 8 }}>Management</div>
+        return () => {
+            window.removeEventListener("resize", updateAccountMenuPos);
+            window.removeEventListener("scroll", updateAccountMenuPos, true);
+            document.removeEventListener("mousedown", onOutsideClick);
+            document.removeEventListener("keydown", onEscape);
+        };
+    }, [accountMenuOpen]);
 
-        <NavItem pageId="customers" label="Customers" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <circle cx="9" cy="6" r="3"/>
-            <path d="M2 17c0-3.866 3.134-7 7-7s7 3.134 7 7"/>
-          </svg>
-        }/>
+    const handleInstall = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === "accepted") {
+            setInstalled(true);
+            setInstallPrompt(null);
+        }
+    };
 
-        <NavItem pageId="billing" label="Billing" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <rect x="2" y="4" width="14" height="11" rx="1.5"/>
-            <path d="M2 8h14"/>
-            <path d="M6 12h2M10 12h2"/>
-          </svg>
-        }/>
+    const handleAccountMenuToggle = () => {
+        if (!accountMenuOpen) {
+            updateAccountMenuPos();
+        }
+        setAccountMenuOpen((prev) => !prev);
+    };
 
-        <NavItem pageId="reports" label="Reports" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <path d="M4 14V9M8 14V5M12 14v-3M16 14v-7"/>
-          </svg>
-        }/>
+    const openSettingsTab = (tab: "profile" | "company") => {
+        try {
+            window.sessionStorage.setItem("cargoos:settings-tab", tab);
+        } catch {
+            // Ignore storage errors in restricted browser contexts.
+        }
+        setActivePage("settings");
+        window.dispatchEvent(
+            new CustomEvent("cargoos:open-settings-tab", { detail: { tab } }),
+        );
+        setAccountMenuOpen(false);
+    };
 
-        <div className="nav-section-label" style={{ marginTop: 8 }}>System</div>
+    const handleLogout = () => {
+        setAccountMenuOpen(false);
+        void logout();
+    };
 
-        <NavItem pageId="settings" label="Settings" icon={
-          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <circle cx="9" cy="9" r="2.5"/>
-            <path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.1 3.1l1.4 1.4M13.5 13.5l1.4 1.4M3.1 14.9l1.4-1.4M13.5 4.5l1.4-1.4"/>
-          </svg>
-        }/>
-      </nav>
+    const initials =
+        (currentUser?.name ?? "")
+            .trim()
+            .split(" ")
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase() || "NA";
+    const primaryRole = currentUser?.roles?.[0]?.name ?? "User";
 
-      <div className="sidebar-footer">
-        <div className="avatar">AK</div>
-        <div className="user-info">
-          <div className="user-name">Amir Khalil</div>
-          <div className="user-role">Ops Manager</div>
-        </div>
-      </div>
-    </aside>
-  );
+    const transitCount = shipments.filter(
+        (s) => s.status === "transit" || s.status === "delayed",
+    ).length;
+    const pendingBookings = bookings.filter(
+        (b) => b.status === "new" || b.status === "reviewing",
+    ).length;
+
+    return (
+        <aside className={`sidebar${sidebarCollapsed ? " collapsed" : ""}`}>
+            <div className="sidebar-header">
+                <div className="logo-mark">
+                    <img
+                        src="/logo.png"
+                        alt="RTEXPRESS"
+                        style={{
+                            width: "24px",
+                            height: "24px",
+                            objectFit: "cover",
+                            borderRadius: "50%",
+                        }}
+                    />
+                </div>
+                <span className="logo-text">RT EXPRESS</span>
+            </div>
+
+            <nav className="sidebar-nav">
+                <div className="nav-section-label">Operations</div>
+
+                <NavItem
+                    pageId="dashboard"
+                    label="Dashboard"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <rect
+                                x="1.5"
+                                y="1.5"
+                                width="6"
+                                height="6"
+                                rx="1.5"
+                            />
+                            <rect
+                                x="10.5"
+                                y="1.5"
+                                width="6"
+                                height="6"
+                                rx="1.5"
+                            />
+                            <rect
+                                x="1.5"
+                                y="10.5"
+                                width="6"
+                                height="6"
+                                rx="1.5"
+                            />
+                            <rect
+                                x="10.5"
+                                y="10.5"
+                                width="6"
+                                height="6"
+                                rx="1.5"
+                            />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="shipments"
+                    label="Shipments"
+                    badge={transitCount || undefined}
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <path d="M2 4h14v10a1 1 0 01-1 1H3a1 1 0 01-1-1V4z" />
+                            <path d="M6 4V2.5A.5.5 0 016.5 2h5a.5.5 0 01.5.5V4" />
+                            <path d="M2 8h14" />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="tracking"
+                    label="Track Shipment"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <circle cx="8" cy="8" r="6" />
+                            <path d="M13 13l4 4" />
+                            <path d="M6 8h4M8 6v4" />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="bookings"
+                    label="Bookings"
+                    badge={pendingBookings > 0 ? pendingBookings : undefined}
+                    badgeColor={
+                        pendingBookings > 0 ? "var(--amber)" : undefined
+                    }
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <rect x="2" y="3" width="14" height="13" rx="1.5" />
+                            <path d="M2 7h14" />
+                            <path d="M6 1v4M12 1v4" />
+                            <path d="M6 11h2M10 11h2M6 14h2" />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="fleet"
+                    label="Fleet"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <rect x="1" y="5" width="12" height="9" rx="1.5" />
+                            <path d="M13 8l3 2v4h-3V8z" />
+                            <circle cx="4.5" cy="14" r="1.5" />
+                            <circle cx="10.5" cy="14" r="1.5" />
+                            <circle cx="15" cy="14" r="1.5" />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="routes"
+                    label="Routes"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <circle cx="4" cy="4" r="2" />
+                            <circle cx="14" cy="14" r="2" />
+                            <path d="M4 6c0 5 10 3 10 8" />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="warehouses"
+                    label="Warehouses"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <path d="M2 8L9 2l7 6v8H2V8z" />
+                            <rect x="7" y="11" width="4" height="5" />
+                        </svg>
+                    }
+                />
+
+                <div className="nav-section-label" style={{ marginTop: 8 }}>
+                    Management
+                </div>
+
+                <NavItem
+                    pageId="customers"
+                    label="Customers"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <circle cx="9" cy="6" r="3" />
+                            <path d="M2 17c0-3.866 3.134-7 7-7s7 3.134 7 7" />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="billing"
+                    label="Billing"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <rect x="2" y="4" width="14" height="11" rx="1.5" />
+                            <path d="M2 8h14" />
+                            <path d="M6 12h2M10 12h2" />
+                        </svg>
+                    }
+                />
+
+                <NavItem
+                    pageId="reports"
+                    label="Reports"
+                    icon={
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                        >
+                            <path d="M4 14V9M8 14V5M12 14v-3M16 14v-7" />
+                        </svg>
+                    }
+                />
+
+                {hasRole("admin") && (
+                    <NavItem
+                        pageId="access-control"
+                        label="Access Control"
+                        icon={
+                            <svg
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                            >
+                                <path d="M9 1l6 2v4c0 4.5-2.6 7.3-6 9-3.4-1.7-6-4.5-6-9V3l6-2z" />
+                                <path d="M6.5 8.5L8.5 10.5L12 7" />
+                            </svg>
+                        }
+                    />
+                )}
+            </nav>
+
+            {/* PWA Install button — only visible when browser offers install */}
+            {installPrompt && !installed && (
+                <div
+                    style={{
+                        padding: "8px 12px",
+                        borderTop: "1px solid var(--border)",
+                    }}
+                >
+                    <button
+                        onClick={handleInstall}
+                        title="Install CargoOS as an app"
+                        style={{
+                            width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            background: "var(--blue-dim)",
+                            border: "1px solid var(--blue)",
+                            color: "var(--blue)",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            letterSpacing: "0.02em",
+                            transition: "background 0.15s",
+                            overflow: "hidden",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.7"
+                            strokeLinecap="round"
+                            style={{ width: 16, height: 16, flexShrink: 0 }}
+                        >
+                            <path d="M9 1v10M5 8l4 4 4-4" />
+                            <path d="M2 14v1a1 1 0 001 1h12a1 1 0 001-1v-1" />
+                        </svg>
+                        {!sidebarCollapsed && <span>Install App</span>}
+                    </button>
+                </div>
+            )}
+            {installed && (
+                <div
+                    style={{
+                        padding: "6px 12px",
+                        borderTop: "1px solid var(--border)",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            background: "var(--green-dim)",
+                            color: "var(--green)",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            overflow: "hidden",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        <svg
+                            viewBox="0 0 18 18"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.7"
+                            strokeLinecap="round"
+                            style={{ width: 14, height: 14, flexShrink: 0 }}
+                        >
+                            <path d="M3 9l4 4 8-8" />
+                        </svg>
+                        {!sidebarCollapsed && <span>App Installed</span>}
+                    </div>
+                </div>
+            )}
+
+            <div className="sidebar-footer-wrap" ref={footerRef}>
+                {accountMenuOpen && (
+                    <div
+                        ref={panelRef}
+                        id="sidebar-account-menu"
+                        className="sidebar-account-menu"
+                        style={accountMenuStyle}
+                    >
+                        <div className="account-menu-header">
+                            {currentUser?.email ?? "Unknown user"}
+                        </div>
+
+                        <button
+                            className="account-menu-item"
+                            onClick={() => openSettingsTab("profile")}
+                        >
+                            <span className="account-menu-icon">
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                >
+                                    <circle cx="9" cy="6" r="3" />
+                                    <path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+                                </svg>
+                            </span>
+                            <span>Profile</span>
+                        </button>
+
+                        <button
+                            className="account-menu-item"
+                            onClick={() => openSettingsTab("company")}
+                        >
+                            <span className="account-menu-icon">
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                >
+                                    <circle cx="9" cy="9" r="3" />
+                                    <path d="M9 1v2M9 15v2M1 9h2M15 9h2M3 3l1.4 1.4M13.6 13.6L15 15M3 15l1.4-1.4M13.6 4.4L15 3" />
+                                </svg>
+                            </span>
+                            <span>Settings</span>
+                        </button>
+
+                        <div className="account-menu-divider" />
+
+                        <button
+                            className="account-menu-item"
+                            onClick={handleLogout}
+                        >
+                            <span className="account-menu-icon">
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M7 3H3v12h4" />
+                                    <path d="M11 6l4 3-4 3" />
+                                    <path d="M15 9H7" />
+                                </svg>
+                            </span>
+                            <span>Log out</span>
+                        </button>
+                    </div>
+                )}
+
+                <div
+                    className={`sidebar-footer${accountMenuOpen ? " open" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-haspopup="menu"
+                    aria-expanded={accountMenuOpen}
+                    aria-controls="sidebar-account-menu"
+                    onClick={handleAccountMenuToggle}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleAccountMenuToggle();
+                        }
+                    }}
+                >
+                    <div className="avatar sidebar-avatar">{initials}</div>
+                    <div className="user-info">
+                        <div className="user-name">
+                            {currentUser?.name ?? "Unknown"}
+                        </div>
+                        <div className="user-role">{primaryRole}</div>
+                    </div>
+
+                    <div className="sidebar-footer-controls">
+                        {installPrompt && !installed && (
+                            <button
+                                type="button"
+                                className="sidebar-footer-icon-btn"
+                                title="Install App"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleInstall();
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M9 1v10M5 8l4 4 4-4" />
+                                    <path d="M2 14v1a1 1 0 001 1h12a1 1 0 001-1v-1" />
+                                </svg>
+                            </button>
+                        )}
+
+                        <span
+                            className="sidebar-footer-chevron-stack"
+                            aria-hidden="true"
+                        >
+                            <svg
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                            >
+                                <path d="M6 10l3-3 3 3" />
+                            </svg>
+                            <svg
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                            >
+                                <path d="M6 8l3 3 3-3" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    );
 }

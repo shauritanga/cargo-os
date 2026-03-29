@@ -7,6 +7,7 @@ import React, {
     ReactNode,
 } from "react";
 import type {
+    AuthUser,
     Shipment,
     Booking,
     FleetVehicle,
@@ -15,7 +16,7 @@ import type {
     PageId,
 } from "../types";
 import { genBookings, genFleet, ROUTE_DATA, genWarehouses } from "../data/mock";
-import { fetchShipments } from "../lib/api";
+import { fetchShipments, logoutApi, meApi } from "../lib/api";
 
 interface Toast {
     message: string;
@@ -47,6 +48,9 @@ interface AppState {
     warehouses: Warehouse[];
     toast: Toast | null;
     companySettings: CompanySettings;
+    currentUser: AuthUser | null;
+    authLoading: boolean;
+    authError: string | null;
 }
 
 interface AppActions {
@@ -64,6 +68,11 @@ interface AppActions {
     showToast: (message: string, color?: Toast["color"]) => void;
     setCompanySettings: React.Dispatch<React.SetStateAction<CompanySettings>>;
     nextAwbNumber: () => string;
+    setCurrentUser: React.Dispatch<React.SetStateAction<AuthUser | null>>;
+    hasRole: (roleName: string) => boolean;
+    hasPermission: (permissionKey: string) => boolean;
+    logout: () => Promise<void>;
+    refreshCurrentUser: () => Promise<void>;
 }
 
 const AppContext = createContext<(AppState & AppActions) | null>(null);
@@ -91,10 +100,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         awbPrefix: "0255",
         awbCounter: 1,
     });
+    const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+    const [authLoading, setAuthLoading] = useState(true);
+    const [authError, setAuthError] = useState<string | null>(null);
 
     const awbCounterRef = React.useRef(1);
 
     const reloadShipments = useCallback(async () => {
+        if (currentUser === null) {
+            setShipmentsLoading(false);
+            return;
+        }
+
         setShipmentsLoading(true);
         setShipmentsError(null);
         try {
@@ -105,11 +122,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } finally {
             setShipmentsLoading(false);
         }
+    }, [currentUser]);
+
+    const refreshCurrentUser = useCallback(async () => {
+        setAuthLoading(true);
+        setAuthError(null);
+
+        try {
+            const user = await meApi();
+            setCurrentUser(user);
+        } catch (e: any) {
+            setCurrentUser(null);
+            setAuthError(e?.message ?? "Authentication required");
+            if (window.location.pathname !== "/login") {
+                window.location.assign("/login");
+            }
+        } finally {
+            setAuthLoading(false);
+        }
     }, []);
 
     useEffect(() => {
-        reloadShipments();
-    }, [reloadShipments]);
+        refreshCurrentUser();
+    }, [refreshCurrentUser]);
+
+    useEffect(() => {
+        if (currentUser !== null) {
+            reloadShipments();
+        }
+    }, [currentUser, reloadShipments]);
 
     const nextAwbNumber = useCallback((): string => {
         const counter = awbCounterRef.current;
@@ -150,6 +191,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
         [],
     );
 
+    const hasRole = useCallback(
+        (roleName: string) => {
+            return (currentUser?.roles ?? []).some(
+                (role) => role.name === roleName,
+            );
+        },
+        [currentUser],
+    );
+
+    const hasPermission = useCallback(
+        (permissionKey: string) => {
+            return (currentUser?.effectivePermissions ?? []).includes(
+                permissionKey,
+            );
+        },
+        [currentUser],
+    );
+
+    const logout = useCallback(async () => {
+        try {
+            await logoutApi();
+        } catch {
+            // Continue local logout flow even if server call fails.
+        }
+
+        setCurrentUser(null);
+        window.location.assign("/login");
+    }, []);
+
     return (
         <AppContext.Provider
             value={{
@@ -165,6 +235,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 warehouses,
                 toast,
                 companySettings,
+                currentUser,
+                authLoading,
+                authError,
                 setTheme,
                 toggleTheme,
                 setActivePage,
@@ -179,6 +252,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 showToast,
                 setCompanySettings,
                 nextAwbNumber,
+                setCurrentUser,
+                hasRole,
+                hasPermission,
+                logout,
+                refreshCurrentUser,
             }}
         >
             {children}

@@ -1,16 +1,23 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { AppProvider } from './context/AppContext';
-import Shell from './components/layout/Shell';
-import '../css/app.css';
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { AppProvider } from "./context/AppContext";
+import Shell from "./components/layout/Shell";
+import Login from "./pages/Login";
+import "../css/app.css";
 
-const root = document.getElementById('app');
+const root = document.getElementById("app");
 if (root) {
-  createRoot(root).render(
-    <React.StrictMode>
-      <AppProvider>
-        <Shell />
-      </AppProvider>
-    </React.StrictMode>
-  );
+    const isLoginRoute = window.location.pathname === "/login";
+
+    createRoot(root).render(
+        <React.StrictMode>
+            {isLoginRoute ? (
+                <Login />
+            ) : (
+                <AppProvider>
+                    <Shell />
+                </AppProvider>
+            )}
+        </React.StrictMode>,
+    );
 }

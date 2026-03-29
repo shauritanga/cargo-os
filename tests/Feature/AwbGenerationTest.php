@@ -3,12 +3,33 @@
 namespace Tests\Feature;
 
 use App\Models\CompanySettings;
+use App\Models\Permission;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AwbGenerationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $user = User::factory()->create([
+            'is_active' => true,
+        ]);
+
+        $permission = Permission::query()->create([
+            'key' => 'shipments.create',
+            'resource' => 'shipments',
+            'action' => 'create',
+            'description' => 'Create shipments',
+        ]);
+
+        $user->directPermissions()->sync([$permission->id]);
+        $this->actingAs($user, 'web');
+    }
 
     public function test_new_shipment_generates_12_digit_awb_with_0255_prefix(): void
     {
