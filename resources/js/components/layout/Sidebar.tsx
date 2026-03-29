@@ -19,11 +19,12 @@ interface DeferredPromptEvent extends Event {
 }
 
 function NavItem({ pageId, label, badge, badgeColor, icon }: NavItemProps) {
-    const { activePage, setActivePage } = useApp();
+    const { activePage, setActivePage, sidebarCollapsed } = useApp();
     const isActive = activePage === pageId;
     return (
         <div
             className={`nav-item${isActive ? " active" : ""}`}
+            title={sidebarCollapsed ? label : undefined}
             onClick={() => setActivePage(pageId)}
         >
             <span className="nav-icon">{icon}</span>
@@ -524,6 +525,11 @@ export default function Sidebar() {
 
                 <div
                     className={`sidebar-footer${accountMenuOpen ? " open" : ""}`}
+                    title={
+                        sidebarCollapsed
+                            ? currentUser?.name ?? "Unknown"
+                            : undefined
+                    }
                     role="button"
                     tabIndex={0}
                     aria-haspopup="menu"
