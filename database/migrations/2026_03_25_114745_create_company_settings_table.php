@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('country')->default('Tanzania');
             $table->string('currency', 10)->default('USD');
             $table->string('date_format', 20)->default('DD/MM/YYYY');
-            $table->string('awb_prefix', 20)->default('02019');
+            $table->string('awb_prefix', 20)->default('0255');
             $table->unsignedBigInteger('awb_last_sequence')->default(0);
             $table->timestamps();
         });
@@ -28,7 +28,7 @@ return new class extends Migration
             'country'           => 'Kenya',
             'currency'          => 'USD',
             'date_format'       => 'DD/MM/YYYY',
-            'awb_prefix'        => '02019',
+            'awb_prefix'        => '0255',
             'awb_last_sequence' => 0,
             'created_at'        => now(),
             'updated_at'        => now(),

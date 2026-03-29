@@ -7,8 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class CompanySettings extends Model
 {
     protected $fillable = [
-        'name', 'address', 'country', 'currency', 'date_format',
-        'awb_prefix', 'awb_last_sequence',
+        'name',
+        'address',
+        'country',
+        'currency',
+        'date_format',
+        'awb_prefix',
+        'awb_last_sequence',
     ];
 
     /**
@@ -21,7 +26,7 @@ class CompanySettings extends Model
 
     /**
      * Generate the next AWB number atomically.
-     * Returns e.g. "02019 0000001"
+     * Returns e.g. "025500000001"
      */
     public static function nextAwbNumber(): string
     {
@@ -30,6 +35,6 @@ class CompanySettings extends Model
         $settings->awb_last_sequence = $next;
         $settings->save();
 
-        return $settings->awb_prefix . ' ' . str_pad($next, 7, '0', STR_PAD_LEFT);
+        return $settings->awb_prefix . str_pad((string) $next, 8, '0', STR_PAD_LEFT);
     }
 }
