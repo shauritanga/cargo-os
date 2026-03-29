@@ -1,9 +1,12 @@
 import type {
     AuthUser,
+    Booking,
+    BookingStatus,
     ManagedUser,
     Permission,
     Role,
     Shipment,
+    ShipmentStatusEvent,
 } from "../types";
 
 const HEADERS = {
@@ -119,20 +122,128 @@ export function mapShipment(s: Record<string, any>): Shipment {
     };
 }
 
+function mapBooking(b: Record<string, any>): Booking {
+    return {
+        id: String(b.id),
+        customer: b.customer,
+        origin: b.origin,
+        dest: b.dest,
+        mode: b.mode,
+        type: b.type,
+        weight: Number(b.weight) || 0,
+        containers: Number(b.containers) || 1,
+        urgency: b.urgency,
+        status: b.status,
+        received: new Date(b.created_at ?? Date.now()),
+        contact: b.contact ?? "—",
+        email: b.email ?? "—",
+        phone: b.phone ?? "—",
+        message: b.message ?? "",
+        convertedTo: b.converted_to ?? null,
+        assignedTo: b.assigned_to ?? null,
+        notes: b.notes ?? "",
+    };
+}
+
+function mapShipmentStatusEvent(raw: Record<string, any>): ShipmentStatusEvent {
+    return {
+        id: String(raw.id),
+        shipment_id: String(raw.shipment_id),
+        previous_status: raw.previous_status ?? null,
+        new_status: raw.new_status,
+        reason: raw.reason ?? null,
+        is_override: Boolean(raw.is_override),
+        override_reason: raw.override_reason ?? null,
+        metadata: (raw.metadata as Record<string, unknown> | null) ?? null,
+        triggered_by: raw.triggered_by ? String(raw.triggered_by) : null,
+        occurred_at: String(raw.occurred_at),
+        created_at: String(raw.created_at),
+        updated_at: String(raw.updated_at),
+    };
+}
+
 /** Fetch all shipments (loads up to 1000 at once for client-side filtering) */
 export async function fetchShipments(): Promise<Shipment[]> {
     const json = await apiJson<any>("/api/shipments?per_page=1000");
     return (json.data ?? json).map(mapShipment);
 }
 
+export async function fetchBookings(): Promise<Booking[]> {
+    const json = await apiJson<any>("/api/bookings?per_page=1000");
+    return (json.data ?? json).map(mapBooking);
+}
+
+export async function patchBookingStatus(
+    id: string,
+    status: BookingStatus,
+): Promise<Booking> {
+    const booking = await apiJson<any>(`/api/bookings/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+    });
+
+    return mapBooking(booking);
+}
+
+export async function updateBooking(
+    id: string,
+    input: Partial<{
+        customer: string;
+        origin: string;
+        dest: string;
+        mode: string;
+        type: string;
+        weight: number;
+        containers: number;
+        urgency: string;
+        contact: string;
+        email: string;
+        phone: string;
+        message: string;
+        assigned_to: string | null;
+        notes: string;
+    }>,
+): Promise<Booking> {
+    const booking = await apiJson<any>(`/api/bookings/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(input),
+    });
+
+    return mapBooking(booking);
+}
+
+export async function convertBookingToShipment(id: string): Promise<Booking> {
+    const booking = await apiJson<any>(`/api/bookings/${id}/convert`, {
+        method: "POST",
+    });
+
+    return mapBooking(booking);
+}
+
 /** PATCH status of a single shipment */
 export async function patchShipmentStatus(
     id: string,
     status: string,
+    options?: {
+        reason?: string;
+        override?: boolean;
+        overrideReason?: string;
+        occurredAt?: string;
+        recipientName?: string;
+        recipientPhone?: string;
+    },
 ): Promise<void> {
     await apiJson<void>(`/api/shipments/${id}/status`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+            status,
+            reason: options?.reason,
+            override: options?.override,
+            override_reason: options?.overrideReason,
+            occurred_at: options?.occurredAt,
+            recipient_name: options?.recipientName,
+            recipient_phone: options?.recipientPhone,
+        }),
     });
 }
 
@@ -145,11 +256,37 @@ export async function deleteShipmentApi(id: string): Promise<void> {
 export async function bulkUpdateApi(
     ids: string[],
     status: string,
+    options?: {
+        reason?: string;
+        override?: boolean;
+        overrideReason?: string;
+        occurredAt?: string;
+        recipientName?: string;
+        recipientPhone?: string;
+    },
 ): Promise<void> {
     await apiJson<void>("/api/shipments/bulk-update", {
         method: "POST",
-        body: JSON.stringify({ ids, status }),
+        body: JSON.stringify({
+            ids,
+            status,
+            reason: options?.reason,
+            override: options?.override,
+            override_reason: options?.overrideReason,
+            occurred_at: options?.occurredAt,
+            recipient_name: options?.recipientName,
+            recipient_phone: options?.recipientPhone,
+        }),
     });
+}
+
+export async function fetchShipmentEvents(
+    id: string,
+): Promise<ShipmentStatusEvent[]> {
+    const events = await apiJson<Record<string, any>[]>(
+        `/api/shipments/${id}/events`,
+    );
+    return events.map(mapShipmentStatusEvent);
 }
 
 /** Bulk delete */

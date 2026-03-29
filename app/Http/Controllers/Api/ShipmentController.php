@@ -5,12 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CompanySettings;
 use App\Models\Shipment;
+use App\Services\ShipmentLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Milon\Barcode\Facades\DNS1DFacade as DNS1D;
 
 class ShipmentController extends Controller
 {
+    public function __construct(private readonly ShipmentLifecycleService $lifecycle) {}
+
     public function index(Request $request): JsonResponse
     {
         $query = Shipment::query()->orderByDesc('created_at');
@@ -25,9 +30,9 @@ class ShipmentController extends Controller
             $q = $request->search;
             $query->where(function ($b) use ($q) {
                 $b->where('awb_number', 'ilike', "%{$q}%")
-                  ->orWhere('customer', 'ilike', "%{$q}%")
-                  ->orWhere('origin', 'ilike', "%{$q}%")
-                  ->orWhere('dest', 'ilike', "%{$q}%");
+                    ->orWhere('customer', 'ilike', "%{$q}%")
+                    ->orWhere('origin', 'ilike', "%{$q}%")
+                    ->orWhere('dest', 'ilike', "%{$q}%");
             });
         }
 
@@ -59,12 +64,18 @@ class ShipmentController extends Controller
             'consignee'      => 'nullable|array',
         ]);
 
-        $shipment = DB::transaction(function () use ($validated) {
+        $shipment = DB::transaction(function () use ($validated, $request) {
             $awbNumber = CompanySettings::nextAwbNumber();
-            return Shipment::create(array_merge($validated, [
+            $shipment = Shipment::create(array_merge($validated, [
                 'awb_number' => $awbNumber,
                 'status'     => 'pending',
             ]));
+
+            $this->lifecycle->recordInitialEvent($shipment, $request->user(), [
+                'source' => 'shipment_create',
+            ]);
+
+            return $shipment;
         });
 
         return response()->json($shipment, 201);
@@ -78,8 +89,15 @@ class ShipmentController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $shipment = Shipment::findOrFail($id);
-        $shipment->update($request->validate([
+
+        $validated = $request->validate([
             'status'         => 'sometimes|in:transit,delivered,pending,delayed,customs',
+            'reason'         => 'sometimes|nullable|string|max:2000',
+            'override'       => 'sometimes|boolean',
+            'override_reason' => 'sometimes|nullable|string|max:2000',
+            'occurred_at'    => 'required_with:status|date',
+            'recipient_name' => 'required_if:status,delivered|nullable|string|max:255',
+            'recipient_phone' => 'required_if:status,delivered|nullable|string|max:50',
             'eta'            => 'sometimes|nullable|date',
             'notes'          => 'sometimes|nullable|string',
             'contact'        => 'sometimes|nullable|string',
@@ -87,7 +105,22 @@ class ShipmentController extends Controller
             'phone'          => 'sometimes|nullable|string',
             'declared_value' => 'sometimes|nullable|string',
             'insurance'      => 'sometimes|nullable|string',
-        ]));
+        ]);
+
+        if (array_key_exists('status', $validated)) {
+            $shipment = $this->lifecycle->transition(
+                $shipment,
+                (string) $validated['status'],
+                Arr::only($validated, ['reason', 'override', 'override_reason', 'occurred_at', 'recipient_name', 'recipient_phone']),
+                $request->user(),
+            );
+        }
+
+        $attributes = Arr::except($validated, ['status', 'reason', 'override', 'override_reason', 'occurred_at', 'recipient_name', 'recipient_phone']);
+        if ($attributes !== []) {
+            $shipment->update($attributes);
+            $shipment = $shipment->fresh();
+        }
 
         return response()->json($shipment);
     }
@@ -100,17 +133,108 @@ class ShipmentController extends Controller
 
     public function updateStatus(Request $request, string $id): JsonResponse
     {
-        $request->validate(['status' => 'required|in:transit,delivered,pending,delayed,customs']);
+        $validated = $request->validate([
+            'status' => 'required|in:transit,delivered,pending,delayed,customs',
+            'reason' => 'sometimes|nullable|string|max:2000',
+            'override' => 'sometimes|boolean',
+            'override_reason' => 'sometimes|nullable|string|max:2000',
+            'occurred_at' => 'required|date',
+            'recipient_name' => 'required_if:status,delivered|nullable|string|max:255',
+            'recipient_phone' => 'required_if:status,delivered|nullable|string|max:50',
+        ]);
+
         $shipment = Shipment::findOrFail($id);
-        $shipment->update(['status' => $request->status]);
+        $shipment = $this->lifecycle->transition(
+            $shipment,
+            (string) $validated['status'],
+            Arr::only($validated, ['reason', 'override', 'override_reason', 'occurred_at', 'recipient_name', 'recipient_phone']),
+            $request->user(),
+        );
+
         return response()->json($shipment);
     }
 
     public function bulkUpdate(Request $request): JsonResponse
     {
-        $request->validate(['ids' => 'required|array', 'status' => 'required|in:transit,delivered,pending,delayed,customs']);
-        Shipment::whereIn('id', $request->ids)->update(['status' => $request->status]);
-        return response()->json(['message' => 'Bulk update applied', 'count' => count($request->ids)]);
+        $validated = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:shipments,id',
+            'status' => 'required|in:transit,delivered,pending,delayed,customs',
+            'reason' => 'sometimes|nullable|string|max:2000',
+            'override' => 'sometimes|boolean',
+            'override_reason' => 'sometimes|nullable|string|max:2000',
+            'occurred_at' => 'required|date',
+            'recipient_name' => 'required_if:status,delivered|nullable|string|max:255',
+            'recipient_phone' => 'required_if:status,delivered|nullable|string|max:50',
+        ]);
+
+        $result = $this->lifecycle->bulkTransition(
+            array_map('intval', $validated['ids']),
+            (string) $validated['status'],
+            Arr::only($validated, ['reason', 'override', 'override_reason', 'occurred_at', 'recipient_name', 'recipient_phone']),
+            $request->user(),
+        );
+
+        return response()->json([
+            'message' => 'Bulk lifecycle update processed.',
+            'updated' => $result['updated'],
+            'failed' => $result['failed'],
+            'total' => $result['total'],
+        ]);
+    }
+
+    public function events(string $id): JsonResponse
+    {
+        $shipment = Shipment::findOrFail($id);
+
+        return response()->json(
+            $shipment->statusEvents()
+                ->with('user:id,name,email')
+                ->orderByDesc('occurred_at')
+                ->get()
+        );
+    }
+
+    public function barcode(string $code)
+    {
+        $payload = $code;
+        if (ctype_digit($code)) {
+            $shipment = Shipment::find((int) $code);
+            if ($shipment) {
+                $tokenize = static function (?string $value, int $limit): string {
+                    $safe = mb_strtoupper((string) $value);
+                    $safe = preg_replace('/[^A-Z0-9]/', '', $safe) ?? '';
+                    return mb_substr($safe, 0, $limit);
+                };
+
+                $awb = $tokenize((string) ($shipment->awb_number ?: $shipment->id), 16);
+                $origin = $tokenize((string) $shipment->origin, 4);
+                $dest = $tokenize((string) $shipment->dest, 4);
+                $customer = $tokenize((string) $shipment->customer, 6);
+                $mode = $tokenize((string) $shipment->mode, 1);
+                $weight = is_numeric($shipment->weight)
+                    ? rtrim(rtrim(number_format((float) $shipment->weight, 1, '.', ''), '0'), '.')
+                    : '';
+                $created = $shipment->created_at?->format('ymdHi') ?? now()->format('ymdHi');
+
+                $payload = sprintf(
+                    'SHP|%s|O%s|D%s|C%s|M%s|W%s|T%s',
+                    $awb,
+                    $origin,
+                    $dest,
+                    $customer,
+                    $mode,
+                    $weight,
+                    $created,
+                );
+            }
+        }
+
+        $svg = DNS1D::getBarcodeSVG($payload, 'C128', 3, 72, 'black', false);
+
+        return response($svg, 200)
+            ->header('Content-Type', 'image/svg+xml')
+            ->header('Cache-Control', 'private, max-age=300');
     }
 
     public function bulkDelete(Request $request): JsonResponse
@@ -133,8 +257,14 @@ class ShipmentController extends Controller
             Shipment::orderByDesc('created_at')->chunk(200, function ($shipments) use ($out) {
                 foreach ($shipments as $s) {
                     fputcsv($out, [
-                        $s->awb_number, $s->type, $s->origin, $s->dest,
-                        $s->customer, $s->weight, $s->mode, $s->status,
+                        $s->awb_number,
+                        $s->type,
+                        $s->origin,
+                        $s->dest,
+                        $s->customer,
+                        $s->weight,
+                        $s->mode,
+                        $s->status,
                         $s->eta?->format('Y-m-d'),
                     ]);
                 }

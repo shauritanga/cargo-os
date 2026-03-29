@@ -34,10 +34,12 @@ Route::middleware(['web', 'auth'])->group(function () {
     // Shipments
     Route::get('shipments', [ShipmentController::class, 'index'])->middleware('permission:shipments.read');
     Route::post('shipments', [ShipmentController::class, 'store'])->middleware('permission:shipments.create');
+    Route::get('shipments/barcode/{code}', [ShipmentController::class, 'barcode'])->middleware('permission:shipments.read');
     Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->middleware('permission:shipments.read');
     Route::put('shipments/{shipment}', [ShipmentController::class, 'update'])->middleware('permission:shipments.update');
     Route::patch('shipments/{shipment}', [ShipmentController::class, 'update'])->middleware('permission:shipments.update');
     Route::delete('shipments/{shipment}', [ShipmentController::class, 'destroy'])->middleware('permission:shipments.delete');
+    Route::get('shipments/{shipment}/events', [ShipmentController::class, 'events'])->middleware('permission:shipments.read');
     Route::patch('shipments/{shipment}/status', [ShipmentController::class, 'updateStatus'])->middleware('permission:shipments.update');
     Route::post('shipments/bulk-update', [ShipmentController::class, 'bulkUpdate'])->middleware('permission:shipments.update');
     Route::post('shipments/bulk-delete', [ShipmentController::class, 'bulkDelete'])->middleware('permission:shipments.delete');

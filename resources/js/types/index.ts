@@ -221,3 +221,18 @@ export interface TimelineStep {
     pending?: boolean;
     warn?: boolean;
 }
+
+export interface ShipmentStatusEvent {
+    id: string;
+    shipment_id: string;
+    previous_status: ShipmentStatus | null;
+    new_status: ShipmentStatus;
+    reason: string | null;
+    is_override: boolean;
+    override_reason: string | null;
+    metadata: Record<string, unknown> | null;
+    triggered_by: string | null;
+    occurred_at: string;
+    created_at: string;
+    updated_at: string;
+}

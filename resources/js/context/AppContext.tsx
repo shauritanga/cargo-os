@@ -15,8 +15,8 @@ import type {
     Warehouse,
     PageId,
 } from "../types";
-import { genBookings, genFleet, ROUTE_DATA, genWarehouses } from "../data/mock";
-import { fetchShipments, logoutApi, meApi } from "../lib/api";
+import { genFleet, ROUTE_DATA, genWarehouses } from "../data/mock";
+import { fetchBookings, fetchShipments, logoutApi, meApi } from "../lib/api";
 
 interface Toast {
     message: string;
@@ -61,6 +61,7 @@ interface AppActions {
     toggleSidebar: () => void;
     setShipments: React.Dispatch<React.SetStateAction<Shipment[]>>;
     reloadShipments: () => Promise<void>;
+    reloadBookings: () => Promise<void>;
     setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
     setFleet: React.Dispatch<React.SetStateAction<FleetVehicle[]>>;
     setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
@@ -84,7 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [shipmentsLoading, setShipmentsLoading] = useState(true);
     const [shipmentsError, setShipmentsError] = useState<string | null>(null);
-    const [bookings, setBookings] = useState<Booking[]>(() => genBookings(22));
+    const [bookings, setBookings] = useState<Booking[]>([]);
     const [fleet, setFleet] = useState<FleetVehicle[]>(() => genFleet(24));
     const [routes, setRoutes] = useState<Route[]>([...ROUTE_DATA]);
     const [warehouses, setWarehouses] = useState<Warehouse[]>(() =>
@@ -92,7 +93,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
     const [toast, setToast] = useState<Toast | null>(null);
     const [companySettings, setCompanySettings] = useState<CompanySettings>({
-        name: "RTEXPRESS",
+        name: "RT EXPRESS",
         address: "Westlands, Nairobi",
         country: "Kenya",
         currency: "USD",
@@ -124,6 +125,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     }, [currentUser]);
 
+    const reloadBookings = useCallback(async () => {
+        if (currentUser === null) {
+            return;
+        }
+
+        try {
+            const data = await fetchBookings();
+            setBookings(data);
+        } catch {
+            setBookings([]);
+        }
+    }, [currentUser]);
+
     const refreshCurrentUser = useCallback(async () => {
         setAuthLoading(true);
         setAuthError(null);
@@ -149,8 +163,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (currentUser !== null) {
             reloadShipments();
+            reloadBookings();
         }
-    }, [currentUser, reloadShipments]);
+    }, [currentUser, reloadShipments, reloadBookings]);
 
     const nextAwbNumber = useCallback((): string => {
         const counter = awbCounterRef.current;
@@ -245,6 +260,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 toggleSidebar,
                 setShipments,
                 reloadShipments,
+                reloadBookings,
                 setBookings,
                 setFleet,
                 setRoutes,

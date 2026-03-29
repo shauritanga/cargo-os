@@ -15,6 +15,10 @@ const TEAL       = '#00BCD4';
 const TEAL_DARK  = '#006064';
 const TEAL_LIGHT = '#e0f7fa';
 const LOGO_URL   = '/logo.png';
+const AWB_ADDRESS_LINE = '12 Nyerere Road, Dar es Salaam, Tanzania';
+const AWB_PHONE_OPS = '+255 756 449 449';
+const AWB_PHONE_HQ = '+255 745 000 762';
+const AWB_EMAILS = 'info@rtexpress.co.tz / cs@rtexpress.co.tz';
 
 /* ─── Print HTML builder ──────────────────────────────────────────────────── */
 function buildPrintHtml(
@@ -30,6 +34,7 @@ function buildPrintHtml(
   const date   = fmtDate(shipment.created || new Date());
   const hasIns = !!(shipment.insurance && shipment.insurance !== '—');
   const origin = window.location.origin;
+  const barcodeSrc = `${origin}/api/shipments/barcode/${encodeURIComponent(shipment.id)}`;
 
   const fieldRow = (label: string, value: string) =>
     `<div style="display:flex;padding:3px 10px;border-bottom:1px solid #ddd;min-height:18px">
@@ -61,22 +66,26 @@ function buildPrintHtml(
 <div class="awb">
 
   <!-- HEADER -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:2px solid ${TEAL}">
+  <div style="display:grid;grid-template-columns:1.5fr 1.15fr 0.75fr;border-bottom:2px solid ${TEAL}">
     <!-- Company info -->
     <div style="padding:10px 12px;font-size:9px;line-height:1.6;border-right:1px solid #aaa;background:#f9f9f9">
       <strong style="font-size:11px;color:#111">${companyName}</strong><br/>
-      <span style="color:#555">${companyAddress}</span><br/>
-      ${companyPhone ? `<span style="color:#555">Tel: ${companyPhone}</span><br/>` : ''}
-      ${companyEmail ? `<span style="color:#555">Email: ${companyEmail}</span>` : ''}
+      <span style="color:#555">${AWB_ADDRESS_LINE}</span><br/>
+      <span style="color:#555">Phone Operations: ${AWB_PHONE_OPS}</span><br/>
+      <span style="color:#555">HQ: ${AWB_PHONE_HQ}</span><br/>
+      <span style="color:#555">Email: ${AWB_EMAILS}</span>
     </div>
     <!-- AWB centre -->
-    <div style="padding:10px 12px;text-align:center;border-right:1px solid #aaa;background:#f9f9f9">
+    <div style="padding:10px 8px;text-align:center;border-right:1px solid #aaa;background:#fff">
       <div style="font-weight:700;font-size:13px;color:${TEAL_DARK};letter-spacing:1px">Airwaybill</div>
-      <div style="font-family:'Courier New',monospace;font-size:8px;letter-spacing:3px;margin:4px 0;color:#aaa">||||||||||||||||||||||||||||||||</div>
+      <div style="margin:5px 0 4px;min-height:76px;display:flex;align-items:center;justify-content:center;padding:0 2px">
+        <img src="${barcodeSrc}" alt="Barcode ${awbNo}" style="width:100%;height:72px;object-fit:fill;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+        <div style="display:none;font-family:'Courier New',monospace;font-size:8px;letter-spacing:3px;color:#aaa">||||||||||||||||||||||||||||||||</div>
+      </div>
       <div style="font-weight:700;font-size:20px;letter-spacing:2px;color:#111">${awbNo}</div>
     </div>
     <!-- Logo / brand top-right -->
-    <div style="padding:10px 14px;background:${TEAL};-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column;justify-content:center;align-items:flex-end">
+    <div style="padding:10px 14px;background:${TEAL};-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center">
       <img src="${origin}${LOGO_URL}" alt="${companyName}" style="height:36px;max-width:130px;object-fit:contain;margin-bottom:5px" onerror="this.style.display='none';document.getElementById('fallback-name').style.display='block'"/>
       <div id="fallback-name" style="display:none;font-size:20px;font-weight:900;color:#fff;letter-spacing:1px">${companyName}</div>
       <div style="font-size:8.5px;color:rgba(255,255,255,.9)">www.rtexpress.co.tz</div>
@@ -235,6 +244,7 @@ export default function AirwaybillPrint({ shipment, companyName, companyAddress 
   const con    = shipment.consignor;
   const cee    = shipment.consignee;
   const awbNo  = shipment.awbNumber || shipment.id;
+  const barcodeSrc = `/api/shipments/barcode/${encodeURIComponent(shipment.id)}`;
   const hasIns = !!(shipment.insurance && shipment.insurance !== '—');
   const border = '1px solid #ddd';
 
@@ -269,22 +279,35 @@ export default function AirwaybillPrint({ shipment, companyName, companyAddress 
           <div style={{ border: '2px solid #aaa', borderRadius: 4, overflow: 'hidden', fontSize: 11, background: '#fff', color: '#111' }}>
 
             {/* HEADER */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: `2px solid ${TEAL}` }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.15fr 0.75fr', borderBottom: `2px solid ${TEAL}` }}>
               {/* Company info */}
               <div style={{ padding: '10px 12px', fontSize: 9, lineHeight: 1.6, borderRight: border, background: '#f9f9f9' }}>
                 <div style={{ fontWeight: 700, fontSize: 11, color: '#111', marginBottom: 2 }}>{companyName}</div>
-                <div style={{ color: '#555' }}>{companyAddress}</div>
-                {companyPhone && <div style={{ color: '#555' }}>Tel: {companyPhone}</div>}
-                {companyEmail && <div style={{ color: '#555' }}>Email: {companyEmail}</div>}
+                <div style={{ color: '#555' }}>{AWB_ADDRESS_LINE}</div>
+                <div style={{ color: '#555' }}>Phone Operations: {AWB_PHONE_OPS}</div>
+                <div style={{ color: '#555' }}>HQ: {AWB_PHONE_HQ}</div>
+                <div style={{ color: '#555' }}>Email: {AWB_EMAILS}</div>
               </div>
               {/* AWB centre */}
-              <div style={{ padding: '10px 12px', textAlign: 'center', borderRight: border, background: '#f9f9f9' }}>
+              <div style={{ padding: '10px 8px', textAlign: 'center', borderRight: border, background: '#fff' }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: TEAL_DARK }}>Airwaybill</div>
-                <div style={{ fontFamily: 'monospace', letterSpacing: 2, fontSize: 9, color: '#bbb', margin: '4px 0' }}>||||||||||||||||||||||||||||||||</div>
+                <div style={{ margin: '4px 0', minHeight: 76, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                  <img
+                    src={barcodeSrc}
+                    alt={`Barcode ${awbNo}`}
+                    style={{ width: '100%', height: 72, objectFit: 'fill', display: 'block' }}
+                    onError={e => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                      const fallback = e.currentTarget.nextSibling as HTMLElement | null;
+                      if (fallback) fallback.style.display = 'block';
+                    }}
+                  />
+                  <div style={{ display: 'none', fontFamily: 'monospace', letterSpacing: 2, fontSize: 9, color: '#bbb' }}>||||||||||||||||||||||||||||||||</div>
+                </div>
                 <div style={{ fontWeight: 700, fontSize: 17, letterSpacing: 2, color: '#111' }}>{awbNo}</div>
               </div>
               {/* Logo — top-right teal */}
-              <div style={{ padding: '10px 14px', background: TEAL, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end' }}>
+              <div style={{ padding: '10px 14px', background: TEAL, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                 <img
                   src={LOGO_URL}
                   alt={companyName}

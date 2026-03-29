@@ -30,6 +30,9 @@ export default function AccessControl() {
 
     const [selectedRoleId, setSelectedRoleId] = useState<string>("");
     const [selectedUserId, setSelectedUserId] = useState<string>("");
+    const [activeTab, setActiveTab] = useState<
+        "setup" | "user-access" | "role-permissions"
+    >("setup");
 
     const [savingRolePermissions, setSavingRolePermissions] = useState(false);
     const [savingUserRoles, setSavingUserRoles] = useState(false);
@@ -249,91 +252,145 @@ export default function AccessControl() {
                 </div>
                 <div
                     className="chart-wrap"
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 12,
-                    }}
+                    style={{ display: "grid", gap: 12 }}
                 >
-                    <form
-                        onSubmit={createUserSubmit}
-                        className="card"
-                        style={{ padding: 12 }}
+                    <div
+                        className="filter-tabs access-tabs"
+                        style={{ width: "fit-content" }}
                     >
-                        <div className="form-section-label">Create User</div>
-                        <div className="form-group">
-                            <label className="form-label">Name</label>
-                            <input
-                                className="form-input"
-                                value={newUserName}
-                                onChange={(e) => setNewUserName(e.target.value)}
-                                required
-                            />
+                        <div
+                            className={`filter-tab${activeTab === "setup" ? " active" : ""}`}
+                            onClick={() => setActiveTab("setup")}
+                        >
+                            Setup
                         </div>
-                        <div className="form-group">
-                            <label className="form-label">Email</label>
-                            <input
-                                className="form-input"
-                                type="email"
-                                value={newUserEmail}
-                                onChange={(e) =>
-                                    setNewUserEmail(e.target.value)
-                                }
-                                required
-                            />
+                        <div
+                            className={`filter-tab${activeTab === "user-access" ? " active" : ""}`}
+                            onClick={() => setActiveTab("user-access")}
+                        >
+                            User Access
                         </div>
-                        <div className="form-group">
-                            <label className="form-label">Password</label>
-                            <input
-                                className="form-input"
-                                type="password"
-                                minLength={8}
-                                value={newUserPassword}
-                                onChange={(e) =>
-                                    setNewUserPassword(e.target.value)
-                                }
-                                required
-                            />
+                        <div
+                            className={`filter-tab${activeTab === "role-permissions" ? " active" : ""}`}
+                            onClick={() => setActiveTab("role-permissions")}
+                        >
+                            Role Permissions
                         </div>
-                        <button className="btn primary" type="submit">
-                            Create User
-                        </button>
-                    </form>
+                    </div>
 
-                    <form
-                        onSubmit={createRoleSubmit}
-                        className="card"
-                        style={{ padding: 12 }}
-                    >
-                        <div className="form-section-label">Create Role</div>
-                        <div className="form-group">
-                            <label className="form-label">Role Name</label>
-                            <input
-                                className="form-input"
-                                value={newRoleName}
-                                onChange={(e) => setNewRoleName(e.target.value)}
-                                placeholder="operator"
-                                required
-                            />
+                    {activeTab === "setup" && (
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr",
+                                gap: 12,
+                            }}
+                        >
+                            <form
+                                onSubmit={createUserSubmit}
+                                className="card"
+                                style={{ padding: 12 }}
+                            >
+                                <div className="form-section-label">
+                                    Create User
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Name</label>
+                                    <input
+                                        className="form-input"
+                                        value={newUserName}
+                                        onChange={(e) =>
+                                            setNewUserName(e.target.value)
+                                        }
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Email</label>
+                                    <input
+                                        className="form-input"
+                                        type="email"
+                                        value={newUserEmail}
+                                        onChange={(e) =>
+                                            setNewUserEmail(e.target.value)
+                                        }
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Password
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        type="password"
+                                        minLength={8}
+                                        value={newUserPassword}
+                                        onChange={(e) =>
+                                            setNewUserPassword(e.target.value)
+                                        }
+                                        required
+                                    />
+                                </div>
+                                <button
+                                    className="btn primary"
+                                    type="submit"
+                                    style={{ marginTop: 8 }}
+                                >
+                                    Create User
+                                </button>
+                            </form>
+
+                            <form
+                                onSubmit={createRoleSubmit}
+                                className="card"
+                                style={{ padding: 12 }}
+                            >
+                                <div className="form-section-label">
+                                    Create Role
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Role Name
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={newRoleName}
+                                        onChange={(e) =>
+                                            setNewRoleName(e.target.value)
+                                        }
+                                        placeholder="operator"
+                                        required
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Description
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={newRoleDescription}
+                                        onChange={(e) =>
+                                            setNewRoleDescription(
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <button
+                                    className="btn primary"
+                                    type="submit"
+                                    style={{ marginTop: 8 }}
+                                >
+                                    Create Role
+                                </button>
+                            </form>
                         </div>
-                        <div className="form-group">
-                            <label className="form-label">Description</label>
-                            <input
-                                className="form-input"
-                                value={newRoleDescription}
-                                onChange={(e) =>
-                                    setNewRoleDescription(e.target.value)
-                                }
-                            />
-                        </div>
-                        <button className="btn primary" type="submit">
-                            Create Role
-                        </button>
-                    </form>
+                    )}
                 </div>
             </div>
 
-            <div className="two-col" style={{ alignItems: "start" }}>
+            {activeTab === "user-access" && (
                 <div className="card">
                     <div className="card-header">
                         <div>
@@ -392,11 +449,8 @@ export default function AccessControl() {
 
                                 <div className="form-section-label">Roles</div>
                                 <div
+                                    className="rbac-checkbox-grid"
                                     style={{
-                                        display: "grid",
-                                        gridTemplateColumns:
-                                            "repeat(2, minmax(0, 1fr))",
-                                        gap: 6,
                                         marginBottom: 10,
                                     }}
                                 >
@@ -407,7 +461,7 @@ export default function AccessControl() {
                                         return (
                                             <label
                                                 key={role.id}
-                                                className="login-checkbox"
+                                                className="rbac-checkbox"
                                                 style={{ padding: "4px 0" }}
                                             >
                                                 <input
@@ -438,14 +492,7 @@ export default function AccessControl() {
                                 <div className="form-section-label">
                                     Direct Permissions
                                 </div>
-                                <div
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns:
-                                            "repeat(2, minmax(0, 1fr))",
-                                        gap: 6,
-                                    }}
-                                >
+                                <div className="rbac-checkbox-grid">
                                     {permissions.map((permission) => {
                                         const checked =
                                             selectedUserDirectPermissionIds.has(
@@ -454,7 +501,7 @@ export default function AccessControl() {
                                         return (
                                             <label
                                                 key={permission.id}
-                                                className="login-checkbox"
+                                                className="rbac-checkbox"
                                                 style={{ padding: "4px 0" }}
                                             >
                                                 <input
@@ -489,7 +536,9 @@ export default function AccessControl() {
                         )}
                     </div>
                 </div>
+            )}
 
+            {activeTab === "role-permissions" && (
                 <div className="card">
                     <div className="card-header">
                         <div>
@@ -521,14 +570,7 @@ export default function AccessControl() {
                         </div>
 
                         {selectedRole && (
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns:
-                                        "repeat(2, minmax(0, 1fr))",
-                                    gap: 6,
-                                }}
-                            >
+                            <div className="rbac-checkbox-grid">
                                 {permissions.map((permission) => {
                                     const checked =
                                         selectedRolePermissionIds.has(
@@ -537,7 +579,7 @@ export default function AccessControl() {
                                     return (
                                         <label
                                             key={permission.id}
-                                            className="login-checkbox"
+                                            className="rbac-checkbox"
                                             style={{ padding: "4px 0" }}
                                         >
                                             <input
@@ -567,7 +609,7 @@ export default function AccessControl() {
                         )}
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }
