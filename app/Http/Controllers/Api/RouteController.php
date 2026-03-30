@@ -31,11 +31,11 @@ class RouteController extends Controller
             $q = (string) $request->string('search');
             $query->where(function ($builder) use ($q) {
                 $builder->whereRaw('CAST(id AS TEXT) LIKE ?', ["%{$q}%"])
-                    ->orWhere('origin', 'ilike', "%{$q}%")
-                    ->orWhere('origin_c', 'ilike', "%{$q}%")
-                    ->orWhere('dest', 'ilike', "%{$q}%")
-                    ->orWhere('dest_c', 'ilike', "%{$q}%")
-                    ->orWhere('carrier', 'ilike', "%{$q}%");
+                    ->orWhere('origin', 'like', "%{$q}%")
+                    ->orWhere('origin_c', 'like', "%{$q}%")
+                    ->orWhere('dest', 'like', "%{$q}%")
+                    ->orWhere('dest_c', 'like', "%{$q}%")
+                    ->orWhere('carrier', 'like', "%{$q}%");
             });
         }
 

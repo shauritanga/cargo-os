@@ -28,11 +28,11 @@ class BookingController extends Controller
         if ($request->filled('search')) {
             $q = $request->search;
             $query->where(function ($builder) use ($q) {
-                $builder->where('customer', 'ilike', "%{$q}%")
-                    ->orWhere('origin', 'ilike', "%{$q}%")
-                    ->orWhere('dest', 'ilike', "%{$q}%")
-                    ->orWhere('contact', 'ilike', "%{$q}%")
-                    ->orWhere('email', 'ilike', "%{$q}%");
+                $builder->where('customer', 'like', "%{$q}%")
+                    ->orWhere('origin', 'like', "%{$q}%")
+                    ->orWhere('dest', 'like', "%{$q}%")
+                    ->orWhere('contact', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%");
             });
         }
 

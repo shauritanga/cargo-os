@@ -20,9 +20,9 @@ class BillingController extends Controller
         if ($request->filled('search')) {
             $q = (string) $request->string('search');
             $query->where(function ($builder) use ($q) {
-                $builder->where('invoice_no', 'ilike', "%{$q}%")
-                    ->orWhere('customer', 'ilike', "%{$q}%")
-                    ->orWhere('shipment_ref', 'ilike', "%{$q}%");
+                $builder->where('invoice_no', 'like', "%{$q}%")
+                    ->orWhere('customer', 'like', "%{$q}%")
+                    ->orWhere('shipment_ref', 'like', "%{$q}%");
             });
         }
 

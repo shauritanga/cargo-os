@@ -26,11 +26,11 @@ class CustomerController extends Controller
             $q = (string) $request->string('search');
             $query->where(function ($builder) use ($q) {
                 $builder->whereRaw('CAST(id AS TEXT) LIKE ?', ["%{$q}%"])
-                    ->orWhere('name', 'ilike', "%{$q}%")
-                    ->orWhere('contact', 'ilike', "%{$q}%")
-                    ->orWhere('email', 'ilike', "%{$q}%")
-                    ->orWhere('phone', 'ilike', "%{$q}%")
-                    ->orWhere('country', 'ilike', "%{$q}%");
+                    ->orWhere('name', 'like', "%{$q}%")
+                    ->orWhere('contact', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%")
+                    ->orWhere('phone', 'like', "%{$q}%")
+                    ->orWhere('country', 'like', "%{$q}%");
             });
         }
 
@@ -117,7 +117,7 @@ class CustomerController extends Controller
                 $query->whereRaw('LOWER(TRIM(customer)) = LOWER(TRIM(?))', [$customer->name]);
 
                 if (!empty($customer->email)) {
-                    $query->orWhere('email', 'ilike', $customer->email);
+                    $query->orWhere('email', 'like', $customer->email);
                 }
             })
             ->exists();

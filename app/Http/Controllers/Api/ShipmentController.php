@@ -29,10 +29,10 @@ class ShipmentController extends Controller
         if ($request->filled('search')) {
             $q = $request->search;
             $query->where(function ($b) use ($q) {
-                $b->where('awb_number', 'ilike', "%{$q}%")
-                    ->orWhere('customer', 'ilike', "%{$q}%")
-                    ->orWhere('origin', 'ilike', "%{$q}%")
-                    ->orWhere('dest', 'ilike', "%{$q}%");
+                $b->where('awb_number', 'like', "%{$q}%")
+                    ->orWhere('customer', 'like', "%{$q}%")
+                    ->orWhere('origin', 'like', "%{$q}%")
+                    ->orWhere('dest', 'like', "%{$q}%");
             });
         }
 

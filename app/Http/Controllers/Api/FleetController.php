@@ -26,11 +26,11 @@ class FleetController extends Controller
             $q = (string) $request->string('search');
             $query->where(function ($builder) use ($q) {
                 $builder->whereRaw('CAST(id AS TEXT) LIKE ?', ["%{$q}%"])
-                    ->orWhere('make', 'ilike', "%{$q}%")
-                    ->orWhere('plate', 'ilike', "%{$q}%")
-                    ->orWhere('driver', 'ilike', "%{$q}%")
-                    ->orWhere('base', 'ilike', "%{$q}%")
-                    ->orWhere('current_route', 'ilike', "%{$q}%");
+                    ->orWhere('make', 'like', "%{$q}%")
+                    ->orWhere('plate', 'like', "%{$q}%")
+                    ->orWhere('driver', 'like', "%{$q}%")
+                    ->orWhere('base', 'like', "%{$q}%")
+                    ->orWhere('current_route', 'like', "%{$q}%");
             });
         }
 

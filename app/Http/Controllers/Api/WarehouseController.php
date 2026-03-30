@@ -25,11 +25,11 @@ class WarehouseController extends Controller
             $q = (string) $request->string('search');
             $query->where(function ($builder) use ($q) {
                 $builder->whereRaw('CAST(id AS TEXT) LIKE ?', ["%{$q}%"])
-                    ->orWhere('name', 'ilike', "%{$q}%")
-                    ->orWhere('city', 'ilike', "%{$q}%")
-                    ->orWhere('country', 'ilike', "%{$q}%")
-                    ->orWhere('manager', 'ilike', "%{$q}%")
-                    ->orWhere('address', 'ilike', "%{$q}%");
+                    ->orWhere('name', 'like', "%{$q}%")
+                    ->orWhere('city', 'like', "%{$q}%")
+                    ->orWhere('country', 'like', "%{$q}%")
+                    ->orWhere('manager', 'like', "%{$q}%")
+                    ->orWhere('address', 'like', "%{$q}%");
             });
         }
 

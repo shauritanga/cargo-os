@@ -262,7 +262,8 @@ export default function NewShipmentModal({
         );
         setCargoType(initialShipment.cargoType ?? "General");
         setDeclaredValue(
-            initialShipment.declaredValue && initialShipment.declaredValue !== "—"
+            initialShipment.declaredValue &&
+                initialShipment.declaredValue !== "—"
                 ? initialShipment.declaredValue
                 : "",
         );
@@ -340,7 +341,10 @@ export default function NewShipmentModal({
             };
 
             if (isEdit && initialShipment) {
-                const updated = await updateShipmentApi(initialShipment.id, payload);
+                const updated = await updateShipmentApi(
+                    initialShipment.id,
+                    payload,
+                );
                 if (onSaved) {
                     onSaved(updated);
                 }

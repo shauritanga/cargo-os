@@ -15,10 +15,11 @@ class PublicTrackingController extends Controller
 
         if ($query !== '' && preg_match('/^[A-Za-z0-9\-\s]{6,30}$/', $query) === 1) {
             $awb = strtoupper(preg_replace('/\s+/', ' ', $query) ?? $query);
+            $awbNormalized = strtolower($awb);
 
             $shipment = Shipment::query()
                 ->with(['statusEvents' => fn($builder) => $builder->orderBy('occurred_at')])
-                ->where('awb_number', 'ilike', $awb)
+                ->whereRaw('LOWER(awb_number) = ?', [$awbNormalized])
                 ->first();
         }
 
