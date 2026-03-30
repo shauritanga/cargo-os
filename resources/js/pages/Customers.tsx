@@ -1,303 +1,1139 @@
-import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import React, { useEffect, useMemo, useState } from "react";
+import { useApp } from "../context/AppContext";
+import {
+    createCustomer,
+    deleteCustomer,
+    fetchCustomers,
+    updateCustomer,
+} from "../lib/api";
+import type { Customer, CustomerStatus, CustomerType } from "../types";
 
-interface Customer {
-  id: string;
-  name: string;
-  contact: string;
-  email: string;
-  phone: string;
-  country: string;
-  type: 'Enterprise' | 'SME' | 'Individual';
-  status: 'active' | 'inactive';
-  shipments: number;
-  revenue: string;
-  since: Date;
-}
-
-const CUSTOMERS: Customer[] = [
-  { id: 'C-001', name: 'Unilever Ltd', contact: 'James Omondi', email: 'james@unilever.com', phone: '+254 700 123 456', country: 'Kenya', type: 'Enterprise', status: 'active', shipments: 84, revenue: '$142,500', since: new Date('2021-03-15') },
-  { id: 'C-002', name: 'DHL Express', contact: 'Sarah Kimani', email: 'sarah@dhl.com', phone: '+254 722 987 654', country: 'Kenya', type: 'Enterprise', status: 'active', shipments: 212, revenue: '$389,200', since: new Date('2020-07-01') },
-  { id: 'C-003', name: 'Boeing Parts', contact: 'Mike Waweru', email: 'mike@boeing.com', phone: '+1 206 555 0100', country: 'USA', type: 'Enterprise', status: 'active', shipments: 47, revenue: '$98,400', since: new Date('2022-01-20') },
-  { id: 'C-004', name: 'Apple Inc.', contact: 'Tim Chen', email: 'tim@apple.com', phone: '+1 408 996 1010', country: 'USA', type: 'Enterprise', status: 'active', shipments: 31, revenue: '$77,800', since: new Date('2022-06-10') },
-  { id: 'C-005', name: 'Safaricom PLC', contact: 'Grace Njoroge', email: 'grace@safaricom.co.ke', phone: '+254 722 000 100', country: 'Kenya', type: 'Enterprise', status: 'active', shipments: 65, revenue: '$124,600', since: new Date('2021-09-05') },
-  { id: 'C-006', name: 'Vodacom TZ', contact: 'Ali Hassan', email: 'ali@vodacom.co.tz', phone: '+255 754 100 200', country: 'Tanzania', type: 'Enterprise', status: 'active', shipments: 38, revenue: '$68,900', since: new Date('2022-03-18') },
-  { id: 'C-007', name: 'East Africa Breweries', contact: 'Peter Mwangi', email: 'pmwangi@eabl.com', phone: '+254 733 400 500', country: 'Kenya', type: 'SME', status: 'active', shipments: 22, revenue: '$41,200', since: new Date('2023-01-08') },
-  { id: 'C-008', name: 'Jumia Kenya', contact: 'Amina Abdalla', email: 'amina@jumia.co.ke', phone: '+254 711 200 300', country: 'Kenya', type: 'SME', status: 'inactive', shipments: 14, revenue: '$19,800', since: new Date('2023-05-22') },
-  { id: 'C-009', name: 'Total Energies', contact: 'Claude Dupont', email: 'claude@total.com', phone: '+33 1 47 44 45 46', country: 'France', type: 'Enterprise', status: 'active', shipments: 56, revenue: '$108,700', since: new Date('2021-11-30') },
-  { id: 'C-010', name: 'Dangote Group', contact: 'Emeka Obi', email: 'emeka@dangote.com', phone: '+234 801 234 5678', country: 'Nigeria', type: 'Enterprise', status: 'active', shipments: 73, revenue: '$157,300', since: new Date('2020-12-14') },
-  { id: 'C-011', name: 'Nakumatt Holdings', contact: 'Raj Patel', email: 'raj@nakumatt.com', phone: '+254 777 888 999', country: 'Kenya', type: 'SME', status: 'inactive', shipments: 8, revenue: '$12,400', since: new Date('2023-08-01') },
-  { id: 'C-012', name: 'Zambia Sugar', contact: 'David Banda', email: 'dbanda@zamsugar.co.zm', phone: '+260 97 123 4567', country: 'Zambia', type: 'SME', status: 'active', shipments: 17, revenue: '$31,600', since: new Date('2022-10-19') },
-];
-
-const TYPE_COLOR: Record<string, string> = {
-  Enterprise: 'var(--blue)',
-  SME: 'var(--purple)',
-  Individual: 'var(--amber)',
+const TYPE_COLOR: Record<CustomerType, string> = {
+    Enterprise: "var(--blue)",
+    SME: "var(--purple)",
+    Individual: "var(--amber)",
 };
 
 export default function Customers() {
-  const { showToast } = useApp();
-  const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'Enterprise' | 'SME' | 'Individual'>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [detail, setDetail] = useState<Customer | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: '', contact: '', email: '', phone: '', country: '', type: 'SME' as Customer['type'] });
+    const { showToast, companySettings, globalSearch, setGlobalSearch } =
+        useApp();
+    const activeCurrency = (companySettings.currency || "TZS").toUpperCase();
+    const formatMoney = (amount: number) =>
+        new Intl.NumberFormat("en-TZ", {
+            style: "currency",
+            currency: activeCurrency,
+            maximumFractionDigits: activeCurrency === "TZS" ? 0 : 2,
+        }).format(amount);
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [filterType, setFilterType] = useState<"all" | CustomerType>("all");
+    const [filterStatus, setFilterStatus] = useState<"all" | CustomerStatus>(
+        "all",
+    );
+    const [detail, setDetail] = useState<Customer | null>(null);
 
-  const filtered = CUSTOMERS.filter(c => {
-    const q = search.toLowerCase();
-    const matchQ = !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.country.toLowerCase().includes(q);
-    const matchType = filterType === 'all' || c.type === filterType;
-    const matchStatus = filterStatus === 'all' || c.status === filterStatus;
-    return matchQ && matchType && matchStatus;
-  });
+    const [showModal, setShowModal] = useState(false);
+    const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [submitting, setSubmitting] = useState(false);
 
-  const totalRevenue = CUSTOMERS.filter(c => c.status === 'active').reduce((s, c) => s + parseFloat(c.revenue.replace(/[$,]/g, '')), 0);
-  const activeCount = CUSTOMERS.filter(c => c.status === 'active').length;
-  const totalShipments = CUSTOMERS.reduce((s, c) => s + c.shipments, 0);
+    const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
-  const handleAdd = () => {
-    if (!form.name || !form.email) { showToast('Name and email are required', 'red'); return; }
-    showToast(`Customer "${form.name}" added`, 'green');
-    setShowModal(false);
-    setForm({ name: '', contact: '', email: '', phone: '', country: '', type: 'SME' });
-  };
+    const [form, setForm] = useState({
+        name: "",
+        contact: "",
+        email: "",
+        phone: "",
+        country: "",
+        type: "SME" as CustomerType,
+        status: "active" as CustomerStatus,
+        shipments: "0",
+        revenue: "0",
+        since: "",
+        notes: "",
+    });
 
-  return (
-    <>
-      <div className="content">
-        {/* STAT CARDS */}
-        <div className="stat-grid">
-          <div className="stat-card">
-            <div className="stat-top">
-              <div className="stat-icon" style={{ background: 'var(--blue-dim)', color: 'var(--blue)' }}>
-                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-                  <circle cx="9" cy="6" r="3.5"/>
-                  <path d="M2 16c0-3.314 3.134-6 7-6s7 2.686 7 6"/>
-                </svg>
-              </div>
-              <span className="stat-change up">↑ 5.2%</span>
-            </div>
-            <div className="stat-value">{CUSTOMERS.length}</div>
-            <div className="stat-label">Total Customers</div>
-            <div className="progress-bar"><div className="progress-fill" style={{ width: `${(activeCount / CUSTOMERS.length) * 100}%` }}/></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-top">
-              <div className="stat-icon" style={{ background: 'var(--green-dim)', color: 'var(--green)' }}>
-                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-                  <path d="M9 2v14M5 6h6a2 2 0 010 4H7a2 2 0 000 4h7"/>
-                </svg>
-              </div>
-              <span className="stat-change up">↑ 12.4%</span>
-            </div>
-            <div className="stat-value">${(totalRevenue / 1000).toFixed(0)}K</div>
-            <div className="stat-label">Total Revenue</div>
-            <div className="progress-bar"><div className="progress-fill" style={{ width: '78%', background: 'var(--green)' }}/></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-top">
-              <div className="stat-icon" style={{ background: 'var(--amber-dim)', color: 'var(--amber)' }}>
-                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-                  <rect x="1" y="5" width="12" height="9" rx="1.5"/>
-                  <path d="M13 8l3 2v4h-3V8z"/>
-                  <circle cx="4.5" cy="14" r="1.5"/><circle cx="10.5" cy="14" r="1.5"/>
-                </svg>
-              </div>
-              <span className="stat-change up">↑ 3.8%</span>
-            </div>
-            <div className="stat-value">{totalShipments}</div>
-            <div className="stat-label">Total Shipments</div>
-            <div className="progress-bar"><div className="progress-fill" style={{ width: '65%', background: 'var(--amber)' }}/></div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-top">
-              <div className="stat-icon" style={{ background: 'var(--purple-dim)', color: 'var(--purple)' }}>
-                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
-                  <path d="M9 2l2 5h5l-4 3 1.5 5L9 12l-4.5 3L6 10 2 7h5z"/>
-                </svg>
-              </div>
-              <span className="stat-change up">↑ 2.1%</span>
-            </div>
-            <div className="stat-value">{CUSTOMERS.filter(c => c.type === 'Enterprise').length}</div>
-            <div className="stat-label">Enterprise Clients</div>
-            <div className="progress-bar"><div className="progress-fill" style={{ width: '55%', background: 'var(--purple)' }}/></div>
-          </div>
-        </div>
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await fetchCustomers();
+                setCustomers(data);
+            } catch (e: any) {
+                showToast(e?.message ?? "Failed to load customers.", "red");
+            } finally {
+                setLoading(false);
+            }
+        };
 
-        {/* TOOLBAR */}
-        <div className="card" style={{ overflow: 'visible' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', flexWrap: 'wrap' }}>
-            <div className="search-wrap" style={{ flex: 1, maxWidth: 300, minWidth: 160 }}>
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="7" cy="7" r="5"/><path d="M11 11l3 3"/></svg>
-              <input placeholder="Search customers…" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-            <div className="filter-tabs">
-              {(['all','active','inactive'] as const).map(s => (
-                <div key={s} className={`filter-tab${filterStatus === s ? ' active' : ''}`} onClick={() => setFilterStatus(s)}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </div>
-              ))}
-            </div>
-            <select className="sh-select" value={filterType} onChange={e => setFilterType(e.target.value as any)}>
-              <option value="all">All Types</option>
-              <option value="Enterprise">Enterprise</option>
-              <option value="SME">SME</option>
-              <option value="Individual">Individual</option>
-            </select>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              <button className="btn primary" onClick={() => setShowModal(true)}>
-                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M7 1v12M1 7h12"/></svg>
-                Add Customer
-              </button>
-            </div>
-          </div>
-        </div>
+        load();
+    }, [showToast]);
 
-        {/* TABLE */}
-        <div className="card" style={{ padding: 0 }}>
-          <table className="sh-table">
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Contact</th>
-                <th>Country</th>
-                <th>Type</th>
-                <th>Shipments</th>
-                <th>Revenue</th>
-                <th>Status</th>
-                <th>Since</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(c => (
-                <tr key={c.id} onClick={() => setDetail(c)} style={{ cursor: 'pointer' }}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--blue-dim)', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600, color: 'var(--blue)', flexShrink: 0 }}>
-                        {c.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 500, color: 'var(--text-1)' }}>{c.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{c.id}</div>
-                      </div>
+    const resetForm = () => {
+        setForm({
+            name: "",
+            contact: "",
+            email: "",
+            phone: "",
+            country: "",
+            type: "SME",
+            status: "active",
+            shipments: "0",
+            revenue: "0",
+            since: "",
+            notes: "",
+        });
+        setEditingId(null);
+    };
+
+    const openCreateModal = () => {
+        setModalMode("create");
+        resetForm();
+        setShowModal(true);
+    };
+
+    const openEditModal = (customer: Customer) => {
+        setModalMode("edit");
+        setEditingId(customer.id);
+        setForm({
+            name: customer.name,
+            contact: customer.contact === "—" ? "" : customer.contact,
+            email: customer.email === "—" ? "" : customer.email,
+            phone: customer.phone === "—" ? "" : customer.phone,
+            country: customer.country === "—" ? "" : customer.country,
+            type: customer.type,
+            status: customer.status,
+            shipments: String(customer.shipments),
+            revenue: String(customer.revenue),
+            since: customer.since.toISOString().slice(0, 10),
+            notes: customer.notes,
+        });
+        setShowModal(true);
+    };
+
+    const filtered = useMemo(() => {
+        return customers.filter((c) => {
+            const q = globalSearch.trim().toLowerCase();
+            const matchQ =
+                !q ||
+                `${c.name} ${c.email} ${c.country} ${c.contact} ${c.phone}`
+                    .toLowerCase()
+                    .includes(q);
+            const matchType = filterType === "all" || c.type === filterType;
+            const matchStatus =
+                filterStatus === "all" || c.status === filterStatus;
+            return matchQ && matchType && matchStatus;
+        });
+    }, [customers, globalSearch, filterType, filterStatus]);
+
+    const activeCustomers = useMemo(
+        () => customers.filter((c) => c.status === "active"),
+        [customers],
+    );
+
+    const totalRevenue = useMemo(
+        () => activeCustomers.reduce((s, c) => s + c.revenue, 0),
+        [activeCustomers],
+    );
+
+    const totalShipments = useMemo(
+        () => customers.reduce((s, c) => s + c.shipments, 0),
+        [customers],
+    );
+
+    const enterpriseCount = useMemo(
+        () => customers.filter((c) => c.type === "Enterprise").length,
+        [customers],
+    );
+
+    const handleSave = async () => {
+        const name = form.name.trim();
+        const email = form.email.trim();
+
+        if (!name || !email) {
+            showToast("Name and email are required.", "red");
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const payload = {
+                name,
+                contact: form.contact.trim() || undefined,
+                email,
+                phone: form.phone.trim() || undefined,
+                country: form.country.trim() || undefined,
+                type: form.type,
+                status: form.status,
+                shipments: Number(form.shipments || 0),
+                revenue: Number(form.revenue || 0),
+                since: form.since || undefined,
+                notes: form.notes.trim() || undefined,
+            };
+
+            if (modalMode === "edit" && editingId) {
+                const updated = await updateCustomer(editingId, payload);
+                setCustomers((prev) =>
+                    prev.map((item) =>
+                        item.id === editingId ? updated : item,
+                    ),
+                );
+                if (detail?.id === editingId) {
+                    setDetail(updated);
+                }
+                showToast("Customer updated successfully.", "green");
+            } else {
+                const created = await createCustomer(payload);
+                setCustomers((prev) => [created, ...prev]);
+                showToast(`Customer "${created.name}" added.`, "green");
+            }
+
+            setShowModal(false);
+            resetForm();
+        } catch (e: any) {
+            showToast(
+                e?.message ??
+                    `Failed to ${modalMode === "edit" ? "update" : "create"} customer.`,
+                "red",
+            );
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return;
+
+        setDeleting(true);
+        try {
+            await deleteCustomer(deleteTarget.id);
+            setCustomers((prev) =>
+                prev.filter((item) => item.id !== deleteTarget.id),
+            );
+            if (detail?.id === deleteTarget.id) {
+                setDetail(null);
+            }
+            setDeleteTarget(null);
+            showToast("Customer deleted successfully.", "green");
+        } catch (e: any) {
+            showToast(e?.message ?? "Failed to delete customer.", "red");
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    return (
+        <>
+            <div className="content">
+                <div className="stat-grid">
+                    <div className="stat-card">
+                        <div className="stat-top">
+                            <div
+                                className="stat-icon"
+                                style={{
+                                    background: "var(--blue-dim)",
+                                    color: "var(--blue)",
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                >
+                                    <circle cx="9" cy="6" r="3.5" />
+                                    <path d="M2 16c0-3.314 3.134-6 7-6s7 2.686 7 6" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="stat-value">{customers.length}</div>
+                        <div className="stat-label">Total Customers</div>
+                        <div className="progress-bar">
+                            <div
+                                className="progress-fill"
+                                style={{
+                                    width: `${customers.length > 0 ? (activeCustomers.length / customers.length) * 100 : 0}%`,
+                                }}
+                            />
+                        </div>
                     </div>
-                  </td>
-                  <td>
-                    <div style={{ fontSize: 13 }}>{c.contact}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{c.email}</div>
-                  </td>
-                  <td style={{ color: 'var(--text-2)' }}>{c.country}</td>
-                  <td><span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: `${TYPE_COLOR[c.type]}18`, color: TYPE_COLOR[c.type] }}>{c.type}</span></td>
-                  <td style={{ color: 'var(--text-1)', fontWeight: 500 }}>{c.shipments}</td>
-                  <td style={{ color: 'var(--green)', fontWeight: 500 }}>{c.revenue}</td>
-                  <td>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: c.status === 'active' ? 'var(--green-dim)' : 'var(--red-dim)', color: c.status === 'active' ? 'var(--green)' : 'var(--red)' }}>
-                      {c.status === 'active' ? '● Active' : '○ Inactive'}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--text-3)', fontSize: 12 }}>{c.since.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                  <td><button className="row-action-btn" onClick={e => { e.stopPropagation(); setDetail(c); }}>
-                    <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M5 1l6 6-6 6"/></svg>
-                  </button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-3)' }}>No customers found</div>
-          )}
-        </div>
-      </div>
 
-      {/* DETAIL DRAWER */}
-      {detail && <div className="drawer-overlay open" onClick={() => setDetail(null)} />}
-      {detail && (
-        <div className="detail-panel open">
-          <div className="dp-header">
-            <div>
-              <div className="dp-title">{detail.name}</div>
-              <div className="dp-sub">{detail.id} · {detail.type}</div>
-            </div>
-            <button className="dp-close" onClick={() => setDetail(null)}>✕</button>
-          </div>
-          <div className="dp-body">
-            <div className="dp-section">
-              <div className="dp-section-title">Contact Information</div>
-              <div className="dp-row"><span>Contact</span><span>{detail.contact}</span></div>
-              <div className="dp-row"><span>Email</span><span>{detail.email}</span></div>
-              <div className="dp-row"><span>Phone</span><span>{detail.phone}</span></div>
-              <div className="dp-row"><span>Country</span><span>{detail.country}</span></div>
-            </div>
-            <div className="dp-section">
-              <div className="dp-section-title">Account Details</div>
-              <div className="dp-row"><span>Type</span><span style={{ color: TYPE_COLOR[detail.type] }}>{detail.type}</span></div>
-              <div className="dp-row"><span>Status</span><span style={{ color: detail.status === 'active' ? 'var(--green)' : 'var(--red)' }}>{detail.status}</span></div>
-              <div className="dp-row"><span>Customer Since</span><span>{detail.since.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span></div>
-            </div>
-            <div className="dp-section">
-              <div className="dp-section-title">Statistics</div>
-              <div className="dp-row"><span>Total Shipments</span><span style={{ color: 'var(--blue)', fontWeight: 600 }}>{detail.shipments}</span></div>
-              <div className="dp-row"><span>Total Revenue</span><span style={{ color: 'var(--green)', fontWeight: 600 }}>{detail.revenue}</span></div>
-            </div>
-          </div>
-        </div>
-      )}
+                    <div className="stat-card">
+                        <div className="stat-top">
+                            <div
+                                className="stat-icon"
+                                style={{
+                                    background: "var(--green-dim)",
+                                    color: "var(--green)",
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M9 2v14M5 6h6a2 2 0 010 4H7a2 2 0 000 4h7" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="stat-value">
+                            {formatMoney(totalRevenue)}
+                        </div>
+                        <div className="stat-label">
+                            Total Revenue ({activeCurrency})
+                        </div>
+                        <div className="progress-bar">
+                            <div
+                                className="progress-fill"
+                                style={{
+                                    width: "78%",
+                                    background: "var(--green)",
+                                }}
+                            />
+                        </div>
+                    </div>
 
-      {/* ADD CUSTOMER MODAL */}
-      {showModal && (
-        <div className="modal-backdrop" onClick={() => setShowModal(false)}>
-          <div className="modal" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">Add Customer</span>
-              <button className="modal-close" onClick={() => setShowModal(false)}>✕</button>
+                    <div className="stat-card">
+                        <div className="stat-top">
+                            <div
+                                className="stat-icon"
+                                style={{
+                                    background: "var(--amber-dim)",
+                                    color: "var(--amber)",
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                >
+                                    <rect
+                                        x="1"
+                                        y="5"
+                                        width="12"
+                                        height="9"
+                                        rx="1.5"
+                                    />
+                                    <path d="M13 8l3 2v4h-3V8z" />
+                                    <circle cx="4.5" cy="14" r="1.5" />
+                                    <circle cx="10.5" cy="14" r="1.5" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="stat-value">{totalShipments}</div>
+                        <div className="stat-label">Total Shipments</div>
+                        <div className="progress-bar">
+                            <div
+                                className="progress-fill"
+                                style={{
+                                    width: "65%",
+                                    background: "var(--amber)",
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="stat-card">
+                        <div className="stat-top">
+                            <div
+                                className="stat-icon"
+                                style={{
+                                    background: "var(--purple-dim)",
+                                    color: "var(--purple)",
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 18 18"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.7"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M9 2l2 5h5l-4 3 1.5 5L9 12l-4.5 3L6 10 2 7h5z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="stat-value">{enterpriseCount}</div>
+                        <div className="stat-label">Enterprise Clients</div>
+                        <div className="progress-bar">
+                            <div
+                                className="progress-fill"
+                                style={{
+                                    width: "55%",
+                                    background: "var(--purple)",
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card" style={{ overflow: "visible" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            padding: "12px 16px",
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div
+                            className="search-wrap"
+                            style={{ flex: 1, maxWidth: 300, minWidth: 160 }}
+                        >
+                            <svg
+                                viewBox="0 0 16 16"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.7"
+                                strokeLinecap="round"
+                            >
+                                <circle cx="7" cy="7" r="5" />
+                                <path d="M11 11l3 3" />
+                            </svg>
+                            <input
+                                placeholder="Search customers..."
+                                value={globalSearch}
+                                onChange={(e) =>
+                                    setGlobalSearch(e.target.value)
+                                }
+                            />
+                        </div>
+
+                        <div className="filter-tabs">
+                            {(["all", "active", "inactive"] as const).map(
+                                (s) => (
+                                    <div
+                                        key={s}
+                                        className={`filter-tab${filterStatus === s ? " active" : ""}`}
+                                        onClick={() => setFilterStatus(s)}
+                                    >
+                                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                                    </div>
+                                ),
+                            )}
+                        </div>
+
+                        <select
+                            className="sh-select"
+                            value={filterType}
+                            onChange={(e) =>
+                                setFilterType(
+                                    e.target.value as "all" | CustomerType,
+                                )
+                            }
+                        >
+                            <option value="all">All Types</option>
+                            <option value="Enterprise">Enterprise</option>
+                            <option value="SME">SME</option>
+                            <option value="Individual">Individual</option>
+                        </select>
+
+                        <div
+                            style={{
+                                marginLeft: "auto",
+                                display: "flex",
+                                gap: 8,
+                            }}
+                        >
+                            <button
+                                className="btn primary"
+                                onClick={openCreateModal}
+                            >
+                                <svg
+                                    viewBox="0 0 14 14"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M7 1v12M1 7h12" />
+                                </svg>
+                                Add Customer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card" style={{ padding: 0 }}>
+                    <table className="sh-table">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th>Contact</th>
+                                <th>Country</th>
+                                <th>Type</th>
+                                <th>Shipments</th>
+                                <th>Revenue</th>
+                                <th>Status</th>
+                                <th>Since</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtered.map((c) => (
+                                <tr
+                                    key={c.id}
+                                    onClick={() => setDetail(c)}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <td>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 10,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: 32,
+                                                    height: 32,
+                                                    borderRadius: "50%",
+                                                    background:
+                                                        "var(--blue-dim)",
+                                                    display: "grid",
+                                                    placeItems: "center",
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    color: "var(--blue)",
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                {c.name
+                                                    .slice(0, 2)
+                                                    .toUpperCase()}
+                                            </div>
+                                            <div>
+                                                <div
+                                                    style={{
+                                                        fontWeight: 500,
+                                                        color: "var(--text-1)",
+                                                    }}
+                                                >
+                                                    {c.name}
+                                                </div>
+                                                <div
+                                                    style={{
+                                                        fontSize: 12,
+                                                        color: "var(--text-3)",
+                                                    }}
+                                                >
+                                                    {c.id}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style={{ fontSize: 13 }}>
+                                            {c.contact}
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: "var(--text-3)",
+                                            }}
+                                        >
+                                            {c.email}
+                                        </div>
+                                    </td>
+                                    <td style={{ color: "var(--text-2)" }}>
+                                        {c.country}
+                                    </td>
+                                    <td>
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                padding: "2px 8px",
+                                                borderRadius: 20,
+                                                background: `${TYPE_COLOR[c.type]}18`,
+                                                color: TYPE_COLOR[c.type],
+                                            }}
+                                        >
+                                            {c.type}
+                                        </span>
+                                    </td>
+                                    <td
+                                        style={{
+                                            color: "var(--text-1)",
+                                            fontWeight: 500,
+                                        }}
+                                    >
+                                        {c.shipments}
+                                    </td>
+                                    <td
+                                        style={{
+                                            color: "var(--green)",
+                                            fontWeight: 500,
+                                        }}
+                                    >
+                                        {formatMoney(c.revenue)}
+                                    </td>
+                                    <td>
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                padding: "2px 8px",
+                                                borderRadius: 20,
+                                                background:
+                                                    c.status === "active"
+                                                        ? "var(--green-dim)"
+                                                        : "var(--red-dim)",
+                                                color:
+                                                    c.status === "active"
+                                                        ? "var(--green)"
+                                                        : "var(--red)",
+                                            }}
+                                        >
+                                            {c.status === "active"
+                                                ? "● Active"
+                                                : "○ Inactive"}
+                                        </span>
+                                    </td>
+                                    <td
+                                        style={{
+                                            color: "var(--text-3)",
+                                            fontSize: 12,
+                                        }}
+                                    >
+                                        {c.since.toLocaleDateString("en-GB", {
+                                            day: "2-digit",
+                                            month: "short",
+                                            year: "numeric",
+                                        })}
+                                    </td>
+                                    <td>
+                                        <button
+                                            className="row-action-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDetail(c);
+                                            }}
+                                        >
+                                            <svg
+                                                viewBox="0 0 14 14"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="1.7"
+                                                strokeLinecap="round"
+                                            >
+                                                <path d="M5 1l6 6-6 6" />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {(loading || filtered.length === 0) && (
+                        <div
+                            style={{
+                                padding: "48px 0",
+                                textAlign: "center",
+                                color: "var(--text-3)",
+                            }}
+                        >
+                            {loading
+                                ? "Loading customers..."
+                                : "No customers found"}
+                        </div>
+                    )}
+                </div>
             </div>
-            <div className="modal-body">
-              <div className="form-section-label">Customer Details</div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Company / Name</label>
-                  <input className="sh-input" placeholder="e.g. Acme Corp" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+
+            {detail && (
+                <div
+                    className="drawer-overlay open"
+                    onClick={() => setDetail(null)}
+                />
+            )}
+            {detail && (
+                <div className="bk-detail open">
+                    <div className="dp-header">
+                        <div>
+                            <div style={{ fontSize: 15, fontWeight: 600 }}>
+                                {detail.name}
+                            </div>
+                            <div
+                                style={{
+                                    marginTop: 4,
+                                    color: "var(--text-3)",
+                                    fontSize: 12,
+                                }}
+                            >
+                                {detail.id} · {detail.type}
+                            </div>
+                        </div>
+                        <button
+                            className="dp-close"
+                            onClick={() => setDetail(null)}
+                        >
+                            <svg
+                                viewBox="0 0 12 12"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                            >
+                                <path d="M1 1l10 10M11 1L1 11" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="bk-detail-scroll">
+                        <div className="dp-section">
+                            <div className="dp-section-title">
+                                Contact Information
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Contact</span>
+                                <span className="dp-val">{detail.contact}</span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Email</span>
+                                <span className="dp-val">{detail.email}</span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Phone</span>
+                                <span className="dp-val">{detail.phone}</span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Country</span>
+                                <span className="dp-val">{detail.country}</span>
+                            </div>
+                        </div>
+                        <div className="dp-section">
+                            <div className="dp-section-title">
+                                Account Details
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Type</span>
+                                <span
+                                    className="dp-val"
+                                    style={{ color: TYPE_COLOR[detail.type] }}
+                                >
+                                    {detail.type}
+                                </span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Status</span>
+                                <span
+                                    className="dp-val"
+                                    style={{
+                                        color:
+                                            detail.status === "active"
+                                                ? "var(--green)"
+                                                : "var(--red)",
+                                    }}
+                                >
+                                    {detail.status}
+                                </span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Customer Since</span>
+                                <span className="dp-val">
+                                    {detail.since.toLocaleDateString("en-GB", {
+                                        day: "2-digit",
+                                        month: "short",
+                                        year: "numeric",
+                                    })}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="dp-section">
+                            <div className="dp-section-title">Statistics</div>
+                            <div className="dp-row">
+                                <span className="dp-key">Total Shipments</span>
+                                <span
+                                    className="dp-val"
+                                    style={{
+                                        color: "var(--blue)",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {detail.shipments}
+                                </span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Total Revenue</span>
+                                <span
+                                    className="dp-val"
+                                    style={{
+                                        color: "var(--green)",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    {formatMoney(detail.revenue)}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="dp-section">
+                            <div style={{ display: "flex", gap: 8 }}>
+                                <button
+                                    className="btn"
+                                    onClick={() => openEditModal(detail)}
+                                >
+                                    Edit Customer
+                                </button>
+                                <button
+                                    className="btn"
+                                    style={{
+                                        borderColor: "var(--red)",
+                                        color: "var(--red)",
+                                    }}
+                                    onClick={() => setDeleteTarget(detail)}
+                                >
+                                    Delete Customer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="form-group">
-                  <label>Type</label>
-                  <select className="sh-input" value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value as any }))}>
-                    <option value="Enterprise">Enterprise</option>
-                    <option value="SME">SME</option>
-                    <option value="Individual">Individual</option>
-                  </select>
+            )}
+
+            {showModal && (
+                <div
+                    className="modal-overlay open"
+                    onClick={(e) => {
+                        if (!submitting && e.target === e.currentTarget) {
+                            setShowModal(false);
+                        }
+                    }}
+                >
+                    <div className="modal" style={{ width: 560 }}>
+                        <div className="modal-header">
+                            <span className="modal-title">
+                                {modalMode === "edit"
+                                    ? "Edit Customer"
+                                    : "Add Customer"}
+                            </span>
+                            <button
+                                className="modal-close"
+                                onClick={() => {
+                                    if (!submitting) {
+                                        setShowModal(false);
+                                    }
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 13 13"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M1 1l11 11M12 1L1 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-divider">Identity</div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Company / Name *
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        placeholder="e.g. Acme Corp"
+                                        value={form.name}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                name: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Type</label>
+                                    <select
+                                        className="form-select"
+                                        value={form.type}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                type: e.target
+                                                    .value as CustomerType,
+                                            }))
+                                        }
+                                    >
+                                        <option value="Enterprise">
+                                            Enterprise
+                                        </option>
+                                        <option value="SME">SME</option>
+                                        <option value="Individual">
+                                            Individual
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Status</label>
+                                    <select
+                                        className="form-select"
+                                        value={form.status}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                status: e.target
+                                                    .value as CustomerStatus,
+                                            }))
+                                        }
+                                    >
+                                        <option value="active">Active</option>
+                                        <option value="inactive">
+                                            Inactive
+                                        </option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Customer Since
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        type="date"
+                                        value={form.since}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                since: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-divider">Contact</div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Contact Person
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        placeholder="Full name"
+                                        value={form.contact}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                contact: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Email *
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        type="email"
+                                        placeholder="email@company.com"
+                                        value={form.email}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                email: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Phone</label>
+                                    <input
+                                        className="form-input"
+                                        placeholder="+254 700 000 000"
+                                        value={form.phone}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                phone: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Country
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        placeholder="e.g. Kenya"
+                                        value={form.country}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                country: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-divider">Performance</div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Shipments
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={0}
+                                        value={form.shipments}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                shipments: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Revenue ({activeCurrency})
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={0}
+                                        value={form.revenue}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                revenue: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div
+                                className="form-row"
+                                style={{ gridTemplateColumns: "1fr" }}
+                            >
+                                <div className="form-group">
+                                    <label className="form-label">Notes</label>
+                                    <textarea
+                                        className="form-input"
+                                        rows={3}
+                                        placeholder="Optional notes"
+                                        value={form.notes}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                notes: e.target.value,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button
+                                className="btn"
+                                disabled={submitting}
+                                onClick={() => setShowModal(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn primary"
+                                disabled={submitting}
+                                onClick={handleSave}
+                            >
+                                {submitting
+                                    ? "Saving..."
+                                    : modalMode === "edit"
+                                      ? "Save Changes"
+                                      : "Add Customer"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Contact Person</label>
-                  <input className="sh-input" placeholder="Full name" value={form.contact} onChange={e => setForm(f => ({ ...f, contact: e.target.value }))} />
+            )}
+
+            {deleteTarget && (
+                <div
+                    className="modal-overlay open"
+                    onClick={(e) => {
+                        if (!deleting && e.target === e.currentTarget) {
+                            setDeleteTarget(null);
+                        }
+                    }}
+                >
+                    <div className="modal" style={{ width: 460 }}>
+                        <div className="modal-header">
+                            <span className="modal-title">Delete Customer</span>
+                            <button
+                                className="modal-close"
+                                onClick={() => {
+                                    if (!deleting) {
+                                        setDeleteTarget(null);
+                                    }
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 13 13"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M1 1l11 11M12 1L1 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p
+                                style={{
+                                    margin: 0,
+                                    color: "var(--text-2)",
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                You are about to permanently delete customer{" "}
+                                <strong>{deleteTarget.name}</strong>. This
+                                action cannot be undone.
+                            </p>
+                        </div>
+                        <div className="modal-footer">
+                            <button
+                                className="btn"
+                                disabled={deleting}
+                                onClick={() => setDeleteTarget(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn"
+                                disabled={deleting}
+                                style={{
+                                    borderColor: "var(--red)",
+                                    color: "var(--red)",
+                                }}
+                                onClick={handleDelete}
+                            >
+                                {deleting ? "Deleting..." : "Delete Customer"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div className="form-group">
-                  <label>Country</label>
-                  <input className="sh-input" placeholder="e.g. Kenya" value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Email</label>
-                  <input className="sh-input" type="email" placeholder="email@company.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input className="sh-input" placeholder="+254 700 000 000" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn primary" onClick={handleAdd}>Add Customer</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+            )}
+        </>
+    );
 }

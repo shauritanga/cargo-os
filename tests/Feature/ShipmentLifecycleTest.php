@@ -106,6 +106,60 @@ class ShipmentLifecycleTest extends TestCase
         ]);
     }
 
+    public function test_pending_shipment_can_be_edited(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $user = User::factory()->create(['is_active' => true]);
+        $permission = Permission::query()->where('key', 'shipments.update')->firstOrFail();
+        $user->directPermissions()->sync([$permission->id]);
+
+        $shipment = $this->createShipment('pending');
+
+        $this->actingAs($user, 'web');
+
+        $this->patchJson("/api/shipments/{$shipment->id}", [
+            'notes' => 'Updated while pending',
+            'contact' => 'Pending Ops Contact',
+            'pieces' => 3,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('shipments', [
+            'id' => $shipment->id,
+            'status' => 'pending',
+            'notes' => 'Updated while pending',
+            'contact' => 'Pending Ops Contact',
+            'pieces' => 3,
+        ]);
+    }
+
+    public function test_non_pending_shipment_cannot_be_edited(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $user = User::factory()->create(['is_active' => true]);
+        $permission = Permission::query()->where('key', 'shipments.update')->firstOrFail();
+        $user->directPermissions()->sync([$permission->id]);
+
+        $shipment = $this->createShipment('transit');
+
+        $this->actingAs($user, 'web');
+
+        $this->patchJson("/api/shipments/{$shipment->id}", [
+            'notes' => 'Should not be updated',
+        ])
+            ->assertStatus(422)
+            ->assertJson([
+                'message' => 'Only pending shipments can be edited.',
+            ]);
+
+        $this->assertDatabaseHas('shipments', [
+            'id' => $shipment->id,
+            'status' => 'transit',
+            'notes' => null,
+        ]);
+    }
+
     private function createShipment(string $status): Shipment
     {
         return Shipment::create([

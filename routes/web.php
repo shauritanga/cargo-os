@@ -15,9 +15,9 @@ use App\Http\Controllers\PublicTrackingController;
 */
 
 Route::get('/public/booking', [PublicBookingController::class, 'showForm'])->name('public.booking.form');
-Route::post('/public/booking', [PublicBookingController::class, 'submit'])->name('public.booking.submit');
+Route::post('/public/booking', [PublicBookingController::class, 'submit'])->middleware('throttle:5,1')->name('public.booking.submit');
 Route::get('/public/booking/countries/{code}/cities', [PublicBookingController::class, 'cities'])->name('public.booking.cities');
-Route::get('/public/tracking', [PublicTrackingController::class, 'show'])->name('public.tracking.form');
+Route::get('/public/tracking', [PublicTrackingController::class, 'show'])->middleware('throttle:30,1')->name('public.tracking.form');
 
 Route::get('/{any?}', function () {
     return view('app');

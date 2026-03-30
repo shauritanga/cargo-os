@@ -18,6 +18,11 @@ class DatabaseSeeder extends Seeder
             CountriesSeeder::class,
             RolePermissionSeeder::class,
             AdminUserSeeder::class,
+            FleetVehicleSeeder::class,
+            ShippingRouteSeeder::class,
+            WarehouseSeeder::class,
+            CustomerSeeder::class,
+            BillingInvoiceSeeder::class,
         ]);
     }
 }

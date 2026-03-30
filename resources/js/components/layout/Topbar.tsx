@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useApp } from "../../context/AppContext";
 import type { Theme } from "../../context/AppContext";
 
@@ -22,6 +22,7 @@ const PAGE_TITLES: Record<string, string> = {
     reports: "Reports",
     settings: "Settings",
     "access-control": "Access Control",
+    "audit-logs": "Audit Logs",
     placeholder: "Coming Soon",
 };
 
@@ -30,8 +31,14 @@ interface TopbarProps {
 }
 
 export default function Topbar({ onNewShipment }: TopbarProps) {
-    const { theme, toggleTheme, activePage, toggleSidebar } = useApp();
-    const [search, setSearch] = useState("");
+    const {
+        theme,
+        toggleTheme,
+        activePage,
+        toggleSidebar,
+        globalSearch,
+        setGlobalSearch,
+    } = useApp();
 
     return (
         <header className="topbar">
@@ -71,8 +78,8 @@ export default function Topbar({ onNewShipment }: TopbarProps) {
                     <input
                         type="text"
                         placeholder="Search…"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        value={globalSearch}
+                        onChange={(e) => setGlobalSearch(e.target.value)}
                     />
                 </div>
 

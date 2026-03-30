@@ -15,8 +15,15 @@ import type {
     Warehouse,
     PageId,
 } from "../types";
-import { genFleet, ROUTE_DATA, genWarehouses } from "../data/mock";
-import { fetchBookings, fetchShipments, logoutApi, meApi } from "../lib/api";
+import {
+    fetchBookings,
+    fetchFleet,
+    fetchRoutes,
+    fetchShipments,
+    fetchWarehouses,
+    logoutApi,
+    meApi,
+} from "../lib/api";
 
 interface Toast {
     message: string;
@@ -38,6 +45,7 @@ export interface CompanySettings {
 interface AppState {
     theme: Theme;
     activePage: PageId;
+    globalSearch: string;
     sidebarCollapsed: boolean;
     shipments: Shipment[];
     shipmentsLoading: boolean;
@@ -57,11 +65,15 @@ interface AppActions {
     setTheme: (t: Theme) => void;
     toggleTheme: () => void;
     setActivePage: (p: PageId) => void;
+    setGlobalSearch: React.Dispatch<React.SetStateAction<string>>;
     setSidebarCollapsed: (v: boolean) => void;
     toggleSidebar: () => void;
     setShipments: React.Dispatch<React.SetStateAction<Shipment[]>>;
     reloadShipments: () => Promise<void>;
     reloadBookings: () => Promise<void>;
+    reloadFleet: () => Promise<void>;
+    reloadRoutes: () => Promise<void>;
+    reloadWarehouses: () => Promise<void>;
     setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
     setFleet: React.Dispatch<React.SetStateAction<FleetVehicle[]>>;
     setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
@@ -81,22 +93,21 @@ const AppContext = createContext<(AppState & AppActions) | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<Theme>("dark");
     const [activePage, setActivePage] = useState<PageId>("shipments");
+    const [globalSearch, setGlobalSearch] = useState("");
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [shipmentsLoading, setShipmentsLoading] = useState(true);
     const [shipmentsError, setShipmentsError] = useState<string | null>(null);
     const [bookings, setBookings] = useState<Booking[]>([]);
-    const [fleet, setFleet] = useState<FleetVehicle[]>(() => genFleet(24));
-    const [routes, setRoutes] = useState<Route[]>([...ROUTE_DATA]);
-    const [warehouses, setWarehouses] = useState<Warehouse[]>(() =>
-        genWarehouses(),
-    );
+    const [fleet, setFleet] = useState<FleetVehicle[]>([]);
+    const [routes, setRoutes] = useState<Route[]>([]);
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [toast, setToast] = useState<Toast | null>(null);
     const [companySettings, setCompanySettings] = useState<CompanySettings>({
         name: "RT EXPRESS",
         address: "Westlands, Nairobi",
         country: "Kenya",
-        currency: "USD",
+        currency: "TZS",
         dateFormat: "DD/MM/YYYY",
         awbPrefix: "0255",
         awbCounter: 1,
@@ -138,6 +149,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
     }, [currentUser]);
 
+    const reloadFleet = useCallback(async () => {
+        if (currentUser === null) {
+            return;
+        }
+
+        try {
+            const data = await fetchFleet();
+            setFleet(data);
+        } catch {
+            setFleet([]);
+        }
+    }, [currentUser]);
+
+    const reloadRoutes = useCallback(async () => {
+        if (currentUser === null) {
+            return;
+        }
+
+        try {
+            const data = await fetchRoutes();
+            setRoutes(data);
+        } catch {
+            setRoutes([]);
+        }
+    }, [currentUser]);
+
+    const reloadWarehouses = useCallback(async () => {
+        if (currentUser === null) {
+            return;
+        }
+
+        try {
+            const data = await fetchWarehouses();
+            setWarehouses(data);
+        } catch {
+            setWarehouses([]);
+        }
+    }, [currentUser]);
+
     const refreshCurrentUser = useCallback(async () => {
         setAuthLoading(true);
         setAuthError(null);
@@ -164,8 +214,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (currentUser !== null) {
             reloadShipments();
             reloadBookings();
+            reloadFleet();
+            reloadRoutes();
+            reloadWarehouses();
         }
-    }, [currentUser, reloadShipments, reloadBookings]);
+    }, [
+        currentUser,
+        reloadShipments,
+        reloadBookings,
+        reloadFleet,
+        reloadRoutes,
+        reloadWarehouses,
+    ]);
 
     const nextAwbNumber = useCallback((): string => {
         const counter = awbCounterRef.current;
@@ -240,6 +300,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             value={{
                 theme,
                 activePage,
+                globalSearch,
                 sidebarCollapsed,
                 shipments,
                 shipmentsLoading,
@@ -256,11 +317,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 setTheme,
                 toggleTheme,
                 setActivePage,
+                setGlobalSearch,
                 setSidebarCollapsed,
                 toggleSidebar,
                 setShipments,
                 reloadShipments,
                 reloadBookings,
+                reloadFleet,
+                reloadRoutes,
+                reloadWarehouses,
                 setBookings,
                 setFleet,
                 setRoutes,

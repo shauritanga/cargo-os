@@ -447,6 +447,25 @@ export default function Sidebar() {
                         }
                     />
                 )}
+
+                {hasRole("admin") && (
+                    <NavItem
+                        pageId="audit-logs"
+                        label="Audit Logs"
+                        icon={
+                            <svg
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                            >
+                                <path d="M4 2h10a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" />
+                                <path d="M6 6h6M6 9h6M6 12h4" />
+                            </svg>
+                        }
+                    />
+                )}
             </nav>
 
             <div className="sidebar-footer-wrap" ref={footerRef}>
@@ -527,7 +546,7 @@ export default function Sidebar() {
                     className={`sidebar-footer${accountMenuOpen ? " open" : ""}`}
                     title={
                         sidebarCollapsed
-                            ? currentUser?.name ?? "Unknown"
+                            ? (currentUser?.name ?? "Unknown")
                             : undefined
                     }
                     role="button"

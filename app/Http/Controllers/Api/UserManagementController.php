@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class UserManagementController extends Controller
@@ -33,7 +34,11 @@ class UserManagementController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:8',
+            'password' => [
+                'required',
+                'string',
+                Password::min(12)->mixedCase()->letters()->numbers()->symbols()->uncompromised(),
+            ],
             'is_active' => 'sometimes|boolean',
         ]);
 
@@ -57,7 +62,11 @@ class UserManagementController extends Controller
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
-            'password' => 'nullable|string|min:8',
+            'password' => [
+                'nullable',
+                'string',
+                Password::min(12)->mixedCase()->letters()->numbers()->symbols()->uncompromised(),
+            ],
             'is_active' => 'sometimes|boolean',
         ]);
 

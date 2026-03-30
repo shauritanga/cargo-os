@@ -105,6 +105,7 @@ class ShipmentController extends Controller
             'phone'          => 'sometimes|nullable|string',
             'declared_value' => 'sometimes|nullable|string',
             'insurance'      => 'sometimes|nullable|string',
+            'pieces'         => 'sometimes|nullable|integer|min:1',
         ]);
 
         if (array_key_exists('status', $validated)) {
@@ -118,6 +119,12 @@ class ShipmentController extends Controller
 
         $attributes = Arr::except($validated, ['status', 'reason', 'override', 'override_reason', 'occurred_at', 'recipient_name', 'recipient_phone']);
         if ($attributes !== []) {
+            if ($shipment->status !== 'pending') {
+                return response()->json([
+                    'message' => 'Only pending shipments can be edited.',
+                ], 422);
+            }
+
             $shipment->update($attributes);
             $shipment = $shipment->fresh();
         }
@@ -257,19 +264,30 @@ class ShipmentController extends Controller
             Shipment::orderByDesc('created_at')->chunk(200, function ($shipments) use ($out) {
                 foreach ($shipments as $s) {
                     fputcsv($out, [
-                        $s->awb_number,
-                        $s->type,
-                        $s->origin,
-                        $s->dest,
-                        $s->customer,
-                        $s->weight,
-                        $s->mode,
-                        $s->status,
-                        $s->eta?->format('Y-m-d'),
+                        $this->sanitizeCsvValue($s->awb_number),
+                        $this->sanitizeCsvValue($s->type),
+                        $this->sanitizeCsvValue($s->origin),
+                        $this->sanitizeCsvValue($s->dest),
+                        $this->sanitizeCsvValue($s->customer),
+                        $this->sanitizeCsvValue($s->weight),
+                        $this->sanitizeCsvValue($s->mode),
+                        $this->sanitizeCsvValue($s->status),
+                        $this->sanitizeCsvValue($s->eta?->format('Y-m-d')),
                     ]);
                 }
             });
             fclose($out);
         }, 'shipments.csv', $headers);
+    }
+
+    private function sanitizeCsvValue(mixed $value): string
+    {
+        $string = trim((string) ($value ?? ''));
+
+        if ($string !== '' && preg_match('/^[=+\-@\t\r]/', $string) === 1) {
+            return "'{$string}";
+        }
+
+        return $string;
     }
 }

@@ -158,6 +158,46 @@ export interface Warehouse {
     notes: string;
 }
 
+export type CustomerType = "Enterprise" | "SME" | "Individual";
+export type CustomerStatus = "active" | "inactive";
+
+export interface Customer {
+    id: string;
+    name: string;
+    contact: string;
+    email: string;
+    phone: string;
+    country: string;
+    type: CustomerType;
+    status: CustomerStatus;
+    shipments: number;
+    revenue: number;
+    since: Date;
+    notes: string;
+}
+
+export type InvoiceStatus = "paid" | "pending" | "overdue" | "draft";
+
+export interface InvoiceLineItem {
+    description: string;
+    qty: number;
+    rate: number;
+}
+
+export interface BillingInvoice {
+    id: string;
+    invoiceNo: string;
+    customer: string;
+    shipmentRef: string;
+    amount: number;
+    currency: string;
+    status: InvoiceStatus;
+    issued: Date;
+    due: Date;
+    items: InvoiceLineItem[];
+    notes: string;
+}
+
 export interface Role {
     id: string;
     name: string;
@@ -193,6 +233,33 @@ export interface ManagedUser {
     effectivePermissions: string[];
 }
 
+export interface AuditLogUser {
+    id: string;
+    name: string;
+    email: string;
+}
+
+export interface AuditLog {
+    id: string;
+    action: string;
+    httpMethod: string | null;
+    path: string;
+    statusCode: number | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    requestData: Record<string, unknown> | null;
+    metadata: Record<string, unknown> | null;
+    createdAt: string | null;
+    user: AuditLogUser | null;
+}
+
+export interface PaginatedAuditLogs {
+    data: AuditLog[];
+    currentPage: number;
+    lastPage: number;
+    total: number;
+}
+
 export type PageId =
     | "dashboard"
     | "shipments"
@@ -206,6 +273,7 @@ export type PageId =
     | "reports"
     | "settings"
     | "access-control"
+    | "audit-logs"
     | "placeholder";
 
 export interface Column {

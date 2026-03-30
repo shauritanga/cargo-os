@@ -19,11 +19,17 @@ const URGENCY_COLOR: Record<string, string> = {
 };
 
 export default function Bookings() {
-    const { bookings, setBookings, showToast, reloadBookings } = useApp();
+    const {
+        bookings,
+        setBookings,
+        showToast,
+        reloadBookings,
+        globalSearch,
+        setGlobalSearch,
+    } = useApp();
     const [statusFilter, setStatusFilter] = useState("all");
     const [urgencyFilter, setUrgencyFilter] = useState("all");
     const [modeFilter, setModeFilter] = useState("all");
-    const [search, setSearch] = useState("");
     const [page, setPage] = useState(1);
     const [view, setView] = useState<"grid" | "list">("grid");
     const [detailId, setDetailId] = useState<string | null>(null);
@@ -34,7 +40,7 @@ export default function Bookings() {
     const [actionBusy, setActionBusy] = useState(false);
 
     const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
+        const q = globalSearch.trim().toLowerCase();
         return bookings.filter((b) => {
             if (statusFilter !== "all" && b.status !== statusFilter)
                 return false;
@@ -50,7 +56,7 @@ export default function Bookings() {
                 return false;
             return true;
         });
-    }, [bookings, statusFilter, urgencyFilter, modeFilter, search]);
+    }, [bookings, statusFilter, urgencyFilter, modeFilter, globalSearch]);
 
     const pageItems = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
     const detailBooking = detailId
@@ -337,9 +343,9 @@ export default function Bookings() {
                             <input
                                 type="text"
                                 placeholder="Search ID, customer, route…"
-                                value={search}
+                                value={globalSearch}
                                 onChange={(e) => {
-                                    setSearch(e.target.value);
+                                    setGlobalSearch(e.target.value);
                                     setPage(1);
                                 }}
                             />

@@ -11,6 +11,9 @@ use App\Http\Controllers\Api\RouteController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\BillingController;
+use App\Http\Controllers\Api\AuditLogController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,11 +26,11 @@ use App\Http\Controllers\Api\LocationController;
 |
 */
 
-Route::middleware(['web', 'guest'])->group(function () {
+Route::middleware(['web', 'throttle:6,1'])->group(function () {
     Route::post('login', [AuthController::class, 'login']);
 });
 
-Route::middleware(['web', 'auth'])->group(function () {
+Route::middleware(['web', 'auth', 'audit'])->group(function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('logout', [AuthController::class, 'logout']);
 
@@ -81,6 +84,23 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::patch('warehouses/{warehouse}', [WarehouseController::class, 'update'])->middleware('permission:warehouses.update');
     Route::delete('warehouses/{warehouse}', [WarehouseController::class, 'destroy'])->middleware('permission:warehouses.delete');
 
+    // Customers
+    Route::get('customers', [CustomerController::class, 'index'])->middleware('permission:customers.read');
+    Route::post('customers', [CustomerController::class, 'store'])->middleware('permission:customers.create');
+    Route::get('customers/{customer}', [CustomerController::class, 'show'])->middleware('permission:customers.read');
+    Route::put('customers/{customer}', [CustomerController::class, 'update'])->middleware('permission:customers.update');
+    Route::patch('customers/{customer}', [CustomerController::class, 'update'])->middleware('permission:customers.update');
+    Route::delete('customers/{customer}', [CustomerController::class, 'destroy'])->middleware('permission:customers.delete');
+
+    // Billing
+    Route::get('billing/invoices', [BillingController::class, 'index'])->middleware('permission:billing.read');
+    Route::post('billing/invoices', [BillingController::class, 'store'])->middleware('permission:billing.create');
+    Route::get('billing/invoices/{invoice}', [BillingController::class, 'show'])->middleware('permission:billing.read');
+    Route::put('billing/invoices/{invoice}', [BillingController::class, 'update'])->middleware('permission:billing.update');
+    Route::patch('billing/invoices/{invoice}', [BillingController::class, 'update'])->middleware('permission:billing.update');
+    Route::delete('billing/invoices/{invoice}', [BillingController::class, 'destroy'])->middleware('permission:billing.delete');
+    Route::patch('billing/invoices/{invoice}/status', [BillingController::class, 'updateStatus'])->middleware('permission:billing.update');
+
     // Locations
     Route::get('countries', [LocationController::class, 'countries'])->middleware('permission:shipments.read');
     Route::get('countries/{code}/cities', [LocationController::class, 'cities'])->middleware('permission:shipments.read');
@@ -105,5 +125,7 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::patch('users/{user}', [UserManagementController::class, 'update']);
         Route::post('users/{user}/roles', [UserManagementController::class, 'assignRoles']);
         Route::post('users/{user}/permissions', [UserManagementController::class, 'assignDirectPermissions']);
+
+        Route::get('audit-logs', [AuditLogController::class, 'index']);
     });
 });

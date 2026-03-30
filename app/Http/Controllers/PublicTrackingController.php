@@ -13,16 +13,13 @@ class PublicTrackingController extends Controller
         $query = trim((string) $request->query('q', ''));
         $shipment = null;
 
-        if ($query !== '') {
-            $shipmentQuery = Shipment::query()
+        if ($query !== '' && preg_match('/^[A-Za-z0-9\-\s]{6,30}$/', $query) === 1) {
+            $awb = strtoupper(preg_replace('/\s+/', ' ', $query) ?? $query);
+
+            $shipment = Shipment::query()
                 ->with(['statusEvents' => fn($builder) => $builder->orderBy('occurred_at')])
-                ->where('awb_number', 'ilike', $query);
-
-            if (ctype_digit($query)) {
-                $shipmentQuery->orWhere('id', (int) $query);
-            }
-
-            $shipment = $shipmentQuery->first();
+                ->where('awb_number', 'ilike', $awb)
+                ->first();
         }
 
         return view('public-tracking', [

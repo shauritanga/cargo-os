@@ -6,6 +6,7 @@ import { ModeIcon } from "../components/shared/ModeIcon";
 import AirwaybillPrint from "../components/shared/AirwaybillPrint";
 import { fmtDate } from "../data/mock";
 import {
+    updateShipmentApi,
     patchShipmentStatus,
     deleteShipmentApi,
     bulkUpdateApi,
@@ -146,12 +147,13 @@ export default function Shipments() {
         companySettings,
         showToast,
         hasRole,
+        globalSearch,
+        setGlobalSearch,
     } = useApp();
     const [columns, setColumns] = useState<Column[]>(INIT_COLUMNS);
     const [statusFilter, setStatusFilter] = useState("all");
     const [typeFilter, setTypeFilter] = useState("all");
     const [modeFilter, setModeFilter] = useState("all");
-    const [search, setSearch] = useState("");
     const [sortField, setSortField] = useState("id");
     const [sortDir, setSortDir] = useState(1);
     const [page, setPage] = useState(1);
@@ -171,13 +173,24 @@ export default function Shipments() {
     const [deliveryRecipientName, setDeliveryRecipientName] = useState("");
     const [deliveryRecipientPhone, setDeliveryRecipientPhone] = useState("");
     const [transitionBusy, setTransitionBusy] = useState(false);
+    const [editModalOpen, setEditModalOpen] = useState(false);
+    const [editBusy, setEditBusy] = useState(false);
+    const [editEta, setEditEta] = useState("");
+    const [editContact, setEditContact] = useState("");
+    const [editEmail, setEditEmail] = useState("");
+    const [editPhone, setEditPhone] = useState("");
+    const [editDeclaredValue, setEditDeclaredValue] = useState("");
+    const [editInsurance, setEditInsurance] = useState("");
+    const [editPieces, setEditPieces] = useState("");
+    const [editContents, setEditContents] = useState("");
+    const [editNotes, setEditNotes] = useState("");
     const [detailEvents, setDetailEvents] = useState<ShipmentStatusEvent[]>([]);
     const [detailEventsLoading, setDetailEventsLoading] = useState(false);
     const colMenuRef = useRef<HTMLDivElement>(null);
     const isAdmin = hasRole("admin");
 
     const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
+        const q = globalSearch.trim().toLowerCase();
         return shipments
             .filter((s) => {
                 if (statusFilter !== "all" && s.status !== statusFilter)
@@ -217,7 +230,7 @@ export default function Shipments() {
         statusFilter,
         typeFilter,
         modeFilter,
-        search,
+        globalSearch,
         sortField,
         sortDir,
     ]);
@@ -527,6 +540,81 @@ export default function Shipments() {
         return new Date(now.getTime() - offset).toISOString().slice(0, 16);
     };
 
+    const toLocalDateTimeInput = (date: Date) => {
+        const offset = date.getTimezoneOffset() * 60000;
+        return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    };
+
+    const openEditModal = (shipment: Shipment) => {
+        if (shipment.status !== "pending") {
+            showToast("Only pending shipments can be edited.", "amber");
+            return;
+        }
+
+        setEditEta(toLocalDateTimeInput(shipment.eta));
+        setEditContact(shipment.contact === "—" ? "" : shipment.contact);
+        setEditEmail(shipment.email === "—" ? "" : shipment.email);
+        setEditPhone(shipment.phone === "—" ? "" : shipment.phone);
+        setEditDeclaredValue(
+            shipment.declaredValue === "—" ? "" : shipment.declaredValue,
+        );
+        setEditInsurance(shipment.insurance === "—" ? "" : shipment.insurance);
+        setEditPieces(
+            Number.isFinite(shipment.pieces as number)
+                ? String(shipment.pieces ?? "")
+                : "",
+        );
+        setEditContents(shipment.contents === "—" ? "" : shipment.contents);
+        setEditNotes(shipment.notes ?? "");
+        setEditModalOpen(true);
+    };
+
+    const submitPendingShipmentEdit = async () => {
+        if (!detailShipment) return;
+
+        if (detailShipment.status !== "pending") {
+            showToast("Only pending shipments can be edited.", "amber");
+            return;
+        }
+
+        const piecesValue = Number.parseInt(editPieces, 10);
+        if (
+            editPieces.trim().length > 0 &&
+            (!Number.isFinite(piecesValue) || piecesValue < 1)
+        ) {
+            showToast("Pieces must be at least 1.", "amber");
+            return;
+        }
+
+        setEditBusy(true);
+        try {
+            const updated = await updateShipmentApi(detailShipment.id, {
+                eta: editEta || null,
+                contact: editContact.trim() || null,
+                email: editEmail.trim() || null,
+                phone: editPhone.trim() || null,
+                declared_value: editDeclaredValue.trim() || null,
+                insurance: editInsurance.trim() || null,
+                pieces: editPieces.trim().length > 0 ? piecesValue : null,
+                contents: editContents.trim() || null,
+                notes: editNotes.trim() || null,
+            });
+
+            setShipments((prev) =>
+                prev.map((shipment) =>
+                    shipment.id === updated.id ? updated : shipment,
+                ),
+            );
+            setEditModalOpen(false);
+            showToast("Pending shipment updated", "green");
+        } catch (e: any) {
+            showToast(e?.message ?? "Failed to update shipment", "red");
+            await reloadShipments();
+        } finally {
+            setEditBusy(false);
+        }
+    };
+
     const shTotal = shipments.length || 1;
     const kpiItems = [
         {
@@ -791,9 +879,9 @@ export default function Shipments() {
                             <input
                                 type="text"
                                 placeholder="Search ID, customer, origin, destination…"
-                                value={search}
+                                value={globalSearch}
                                 onChange={(e) => {
-                                    setSearch(e.target.value);
+                                    setGlobalSearch(e.target.value);
                                     setPage(1);
                                 }}
                             />
@@ -1939,6 +2027,20 @@ export default function Shipments() {
                                     </svg>
                                     Print Airwaybill
                                 </button>
+                                {detailShipment.status === "pending" && (
+                                    <button
+                                        className="btn"
+                                        style={{
+                                            justifyContent: "center",
+                                            gridColumn: "1 / -1",
+                                        }}
+                                        onClick={() =>
+                                            openEditModal(detailShipment)
+                                        }
+                                    >
+                                        Edit Pending Shipment
+                                    </button>
+                                )}
                                 {getAllowedTransitions(
                                     detailShipment.status,
                                 ).map((status) => (
@@ -1994,6 +2096,176 @@ export default function Shipments() {
                                     Delete
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {detailShipment && editModalOpen && (
+                <div
+                    className="modal-overlay open"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget && !editBusy) {
+                            setEditModalOpen(false);
+                        }
+                    }}
+                >
+                    <div className="modal" style={{ width: 620 }}>
+                        <div className="modal-header">
+                            <span className="modal-title">
+                                Edit Pending Shipment
+                            </span>
+                            <button
+                                className="modal-close"
+                                onClick={() => {
+                                    if (!editBusy) setEditModalOpen(false);
+                                }}
+                            >
+                                <svg
+                                    viewBox="0 0 13 13"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                >
+                                    <path d="M1 1l11 11M12 1L1 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="modal-body" style={{ padding: 20 }}>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">ETA</label>
+                                    <input
+                                        className="form-input"
+                                        type="datetime-local"
+                                        value={editEta}
+                                        onChange={(e) =>
+                                            setEditEta(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Pieces</label>
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={1}
+                                        value={editPieces}
+                                        onChange={(e) =>
+                                            setEditPieces(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Contact
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editContact}
+                                        onChange={(e) =>
+                                            setEditContact(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Email</label>
+                                    <input
+                                        className="form-input"
+                                        type="email"
+                                        value={editEmail}
+                                        onChange={(e) =>
+                                            setEditEmail(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Phone</label>
+                                    <input
+                                        className="form-input"
+                                        value={editPhone}
+                                        onChange={(e) =>
+                                            setEditPhone(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Declared Value
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editDeclaredValue}
+                                        onChange={(e) =>
+                                            setEditDeclaredValue(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Insurance
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editInsurance}
+                                        onChange={(e) =>
+                                            setEditInsurance(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Contents
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editContents}
+                                        onChange={(e) =>
+                                            setEditContents(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Notes</label>
+                                <textarea
+                                    className="form-textarea"
+                                    rows={3}
+                                    value={editNotes}
+                                    onChange={(e) =>
+                                        setEditNotes(e.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button
+                                className="btn"
+                                onClick={() => setEditModalOpen(false)}
+                                disabled={editBusy}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn primary"
+                                onClick={submitPendingShipmentEdit}
+                                disabled={editBusy}
+                            >
+                                {editBusy ? "Saving..." : "Save Changes"}
+                            </button>
                         </div>
                     </div>
                 </div>

@@ -21,6 +21,7 @@ class RolePermissionSeeder extends Seeder
         'billing',
         'reports',
         'settings',
+        'audit-logs',
     ];
 
     /**

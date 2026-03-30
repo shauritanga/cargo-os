@@ -488,7 +488,7 @@
             @endphp
             <div class="result">
                 <div class="result-head">
-                    <div class="mono">{{ $shipment->awb_number ?? ('ID-' . $shipment->id) }}</div>
+                    <div class="mono">{{ $shipment->awb_number }}</div>
                     <span class="status {{ $shipment->status }}">{{ strtoupper($shipment->status) }}</span>
                 </div>
 
@@ -545,9 +545,6 @@
                                 @endif
                                 @if (!empty(data_get($event->metadata, 'delivery.recipient_name')))
                                 <div class="event-note">Received by: {{ data_get($event->metadata, 'delivery.recipient_name') }}</div>
-                                @endif
-                                @if (!empty(data_get($event->metadata, 'delivery.recipient_phone')))
-                                <div class="event-note">Recipient Phone: {{ data_get($event->metadata, 'delivery.recipient_phone') }}</div>
                                 @endif
                                 @if ($event->is_override && !empty($event->override_reason))
                                 <div class="event-note override">Override: {{ $event->override_reason }}</div>
