@@ -4,9 +4,9 @@ import Badge, { STATUS_LABEL } from "../components/shared/Badge";
 import Pagination from "../components/shared/Pagination";
 import { ModeIcon } from "../components/shared/ModeIcon";
 import AirwaybillPrint from "../components/shared/AirwaybillPrint";
+import NewShipmentModal from "../components/shared/NewShipmentModal";
 import { fmtDate } from "../data/mock";
 import {
-    updateShipmentApi,
     patchShipmentStatus,
     deleteShipmentApi,
     bulkUpdateApi,
@@ -16,9 +16,6 @@ import {
 import type {
     Shipment,
     ShipmentStatus,
-    TransportMode,
-    ShipmentType,
-    CargoType,
     Column,
     TimelineStep,
     ShipmentStatusEvent,
@@ -176,25 +173,9 @@ export default function Shipments() {
     const [deliveryRecipientPhone, setDeliveryRecipientPhone] = useState("");
     const [transitionBusy, setTransitionBusy] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
-    const [editBusy, setEditBusy] = useState(false);
-    const [editType, setEditType] = useState<ShipmentType>("international");
-    const [editOrigin, setEditOrigin] = useState("");
-    const [editOriginCountry, setEditOriginCountry] = useState("");
-    const [editDest, setEditDest] = useState("");
-    const [editDestCountry, setEditDestCountry] = useState("");
-    const [editCustomer, setEditCustomer] = useState("");
-    const [editWeight, setEditWeight] = useState("");
-    const [editMode, setEditMode] = useState<TransportMode>("Road");
-    const [editCargoType, setEditCargoType] = useState<CargoType>("General");
-    const [editEta, setEditEta] = useState("");
-    const [editContact, setEditContact] = useState("");
-    const [editEmail, setEditEmail] = useState("");
-    const [editPhone, setEditPhone] = useState("");
-    const [editDeclaredValue, setEditDeclaredValue] = useState("");
-    const [editInsurance, setEditInsurance] = useState("");
-    const [editPieces, setEditPieces] = useState("");
-    const [editContents, setEditContents] = useState("");
-    const [editNotes, setEditNotes] = useState("");
+    const [editingShipment, setEditingShipment] = useState<Shipment | null>(
+        null,
+    );
     const [detailEvents, setDetailEvents] = useState<ShipmentStatusEvent[]>([]);
     const [detailEventsLoading, setDetailEventsLoading] = useState(false);
     const colMenuRef = useRef<HTMLDivElement>(null);
@@ -551,114 +532,13 @@ export default function Shipments() {
         return new Date(now.getTime() - offset).toISOString().slice(0, 16);
     };
 
-    const toLocalDateTimeInput = (date: Date) => {
-        const offset = date.getTimezoneOffset() * 60000;
-        return new Date(date.getTime() - offset).toISOString().slice(0, 16);
-    };
-
     const openEditModal = (shipment: Shipment) => {
         if (shipment.status !== "pending") {
             showToast("Only pending shipments can be edited.", "amber");
             return;
         }
-
-        setEditType(shipment.type);
-        setEditOrigin(shipment.origin);
-        setEditOriginCountry(shipment.originCountry ?? "");
-        setEditDest(shipment.dest);
-        setEditDestCountry(shipment.destCountry ?? "");
-        setEditCustomer(shipment.customer);
-        setEditWeight(String(shipment.weight ?? ""));
-        setEditMode(shipment.mode);
-        setEditCargoType((shipment.cargoType ?? "General") as CargoType);
-        setEditEta(toLocalDateTimeInput(shipment.eta));
-        setEditContact(shipment.contact === "—" ? "" : shipment.contact);
-        setEditEmail(shipment.email === "—" ? "" : shipment.email);
-        setEditPhone(shipment.phone === "—" ? "" : shipment.phone);
-        setEditDeclaredValue(
-            shipment.declaredValue === "—" ? "" : shipment.declaredValue,
-        );
-        setEditInsurance(shipment.insurance === "—" ? "" : shipment.insurance);
-        setEditPieces(
-            Number.isFinite(shipment.pieces as number)
-                ? String(shipment.pieces ?? "")
-                : "",
-        );
-        setEditContents(shipment.contents === "—" ? "" : shipment.contents);
-        setEditNotes(shipment.notes ?? "");
+        setEditingShipment(shipment);
         setEditModalOpen(true);
-    };
-
-    const submitPendingShipmentEdit = async () => {
-        if (!detailShipment) return;
-
-        if (detailShipment.status !== "pending") {
-            showToast("Only pending shipments can be edited.", "amber");
-            return;
-        }
-
-        const piecesValue = Number.parseInt(editPieces, 10);
-        const weightValue = Number.parseFloat(editWeight);
-
-        if (!editOrigin.trim() || !editDest.trim() || !editCustomer.trim()) {
-            showToast(
-                "Origin, destination, and customer are required.",
-                "amber",
-            );
-            return;
-        }
-
-        if (!Number.isFinite(weightValue) || weightValue < 0) {
-            showToast("Weight must be a valid number of 0 or more.", "amber");
-            return;
-        }
-
-        if (
-            editPieces.trim().length > 0 &&
-            (!Number.isFinite(piecesValue) || piecesValue < 1)
-        ) {
-            showToast("Pieces must be at least 1.", "amber");
-            return;
-        }
-
-        setEditBusy(true);
-        try {
-            const updated = await updateShipmentApi(detailShipment.id, {
-                type: editType,
-                origin: editOrigin.trim(),
-                origin_country: editOriginCountry.trim() || null,
-                dest: editDest.trim(),
-                dest_country: editDestCountry.trim() || null,
-                customer: editCustomer.trim(),
-                weight: weightValue,
-                mode: editMode,
-                cargo_type: editCargoType,
-                eta: editEta || null,
-                contact: editContact.trim() || null,
-                email: editEmail.trim() || null,
-                phone: editPhone.trim() || null,
-                declared_value: editDeclaredValue.trim() || null,
-                insurance: editInsurance.trim() || null,
-                pieces: editPieces.trim().length > 0 ? piecesValue : null,
-                contents: editContents.trim() || null,
-                notes: editNotes.trim() || null,
-                consignor: detailShipment.consignor ?? null,
-                consignee: detailShipment.consignee ?? null,
-            });
-
-            setShipments((prev) =>
-                prev.map((shipment) =>
-                    shipment.id === updated.id ? updated : shipment,
-                ),
-            );
-            setEditModalOpen(false);
-            showToast("Pending shipment updated", "green");
-        } catch (e: any) {
-            showToast(e?.message ?? "Failed to update shipment", "red");
-            await reloadShipments();
-        } finally {
-            setEditBusy(false);
-        }
     };
 
     const shTotal = shipments.length || 1;
@@ -2147,330 +2027,22 @@ export default function Shipments() {
                 </div>
             )}
 
-            {detailShipment && editModalOpen && (
-                <div
-                    className="modal-overlay open"
-                    onClick={(e) => {
-                        if (e.target === e.currentTarget && !editBusy) {
-                            setEditModalOpen(false);
-                        }
+            {editModalOpen && editingShipment && (
+                <NewShipmentModal
+                    modalMode="edit"
+                    initialShipment={editingShipment}
+                    onSaved={(updated) => {
+                        setShipments((prev) =>
+                            prev.map((shipment) =>
+                                shipment.id === updated.id ? updated : shipment,
+                            ),
+                        );
                     }}
-                >
-                    <div className="modal" style={{ width: 620 }}>
-                        <div className="modal-header">
-                            <span className="modal-title">
-                                Edit Pending Shipment
-                            </span>
-                            <button
-                                className="modal-close"
-                                onClick={() => {
-                                    if (!editBusy) setEditModalOpen(false);
-                                }}
-                            >
-                                <svg
-                                    viewBox="0 0 13 13"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                >
-                                    <path d="M1 1l11 11M12 1L1 12" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        <div className="modal-body" style={{ padding: 20 }}>
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Type</label>
-                                    <select
-                                        className="form-select"
-                                        value={editType}
-                                        onChange={(e) =>
-                                            setEditType(
-                                                e.target.value as ShipmentType,
-                                            )
-                                        }
-                                    >
-                                        <option value="international">
-                                            International
-                                        </option>
-                                        <option value="domestic">
-                                            Domestic
-                                        </option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Mode</label>
-                                    <select
-                                        className="form-select"
-                                        value={editMode}
-                                        onChange={(e) =>
-                                            setEditMode(
-                                                e.target.value as TransportMode,
-                                            )
-                                        }
-                                    >
-                                        <option value="Sea">Sea</option>
-                                        <option value="Air">Air</option>
-                                        <option value="Road">Road</option>
-                                        <option value="Rail">Rail</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Origin</label>
-                                    <input
-                                        className="form-input"
-                                        value={editOrigin}
-                                        onChange={(e) =>
-                                            setEditOrigin(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Origin Country
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editOriginCountry}
-                                        onChange={(e) =>
-                                            setEditOriginCountry(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Destination
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editDest}
-                                        onChange={(e) =>
-                                            setEditDest(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Destination Country
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editDestCountry}
-                                        onChange={(e) =>
-                                            setEditDestCountry(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Customer
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editCustomer}
-                                        onChange={(e) =>
-                                            setEditCustomer(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Weight</label>
-                                    <input
-                                        className="form-input"
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        value={editWeight}
-                                        onChange={(e) =>
-                                            setEditWeight(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Cargo Type
-                                    </label>
-                                    <select
-                                        className="form-select"
-                                        value={editCargoType}
-                                        onChange={(e) =>
-                                            setEditCargoType(
-                                                e.target.value as CargoType,
-                                            )
-                                        }
-                                    >
-                                        <option value="General">General</option>
-                                        <option value="Electronics">
-                                            Electronics
-                                        </option>
-                                        <option value="Perishable">
-                                            Perishable
-                                        </option>
-                                        <option value="Hazardous">
-                                            Hazardous
-                                        </option>
-                                        <option value="Automotive">
-                                            Automotive
-                                        </option>
-                                        <option value="Textiles">
-                                            Textiles
-                                        </option>
-                                        <option value="Machinery">
-                                            Machinery
-                                        </option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">ETA</label>
-                                    <input
-                                        className="form-input"
-                                        type="datetime-local"
-                                        value={editEta}
-                                        onChange={(e) =>
-                                            setEditEta(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Pieces</label>
-                                    <input
-                                        className="form-input"
-                                        type="number"
-                                        min={1}
-                                        value={editPieces}
-                                        onChange={(e) =>
-                                            setEditPieces(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Contact
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editContact}
-                                        onChange={(e) =>
-                                            setEditContact(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Email</label>
-                                    <input
-                                        className="form-input"
-                                        type="email"
-                                        value={editEmail}
-                                        onChange={(e) =>
-                                            setEditEmail(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Phone</label>
-                                    <input
-                                        className="form-input"
-                                        value={editPhone}
-                                        onChange={(e) =>
-                                            setEditPhone(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Declared Value
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editDeclaredValue}
-                                        onChange={(e) =>
-                                            setEditDeclaredValue(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Insurance
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editInsurance}
-                                        onChange={(e) =>
-                                            setEditInsurance(e.target.value)
-                                        }
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">
-                                        Contents
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        value={editContents}
-                                        onChange={(e) =>
-                                            setEditContents(e.target.value)
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Notes</label>
-                                <textarea
-                                    className="form-textarea"
-                                    rows={3}
-                                    value={editNotes}
-                                    onChange={(e) =>
-                                        setEditNotes(e.target.value)
-                                    }
-                                />
-                            </div>
-                        </div>
-
-                        <div className="modal-footer">
-                            <button
-                                className="btn"
-                                onClick={() => setEditModalOpen(false)}
-                                disabled={editBusy}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                className="btn primary"
-                                onClick={submitPendingShipmentEdit}
-                                disabled={editBusy}
-                            >
-                                {editBusy ? "Saving..." : "Save Changes"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                    onClose={() => {
+                        setEditModalOpen(false);
+                        setEditingShipment(null);
+                    }}
+                />
             )}
 
             {transitionModal && (

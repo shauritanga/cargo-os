@@ -3,9 +3,13 @@ import { useApp } from "../../context/AppContext";
 import SearchableSelect from "./SearchableSelect";
 import AirwaybillPrint from "./AirwaybillPrint";
 import type { Shipment, Party } from "../../types";
+import { updateShipmentApi } from "../../lib/api";
 
 interface Props {
     onClose: () => void;
+    modalMode?: "create" | "edit";
+    initialShipment?: Shipment;
+    onSaved?: (shipment: Shipment) => void;
 }
 
 async function fetchCountries() {
@@ -140,11 +144,17 @@ function PartyFields({
     );
 }
 
-export default function NewShipmentModal({ onClose }: Props) {
+export default function NewShipmentModal({
+    onClose,
+    modalMode = "create",
+    initialShipment,
+    onSaved,
+}: Props) {
     const { setShipments, showToast, setActivePage, companySettings } =
         useApp();
+    const isEdit = modalMode === "edit" && Boolean(initialShipment);
     const [formType, setFormType] = useState<"international" | "domestic">(
-        "international",
+        initialShipment?.type ?? "international",
     );
 
     const [countryOptions, setCountryOptions] = useState<
@@ -164,19 +174,64 @@ export default function NewShipmentModal({ onClose }: Props) {
     }, []);
 
     // Cargo
-    const [mode, setMode] = useState("Road");
-    const [eta, setEta] = useState("");
-    const [weight, setWeight] = useState("");
-    const [pieces, setPieces] = useState("");
-    const [contents, setContents] = useState("");
-    const [cargoType, setCargoType] = useState("General");
-    const [declaredValue, setDeclaredValue] = useState("");
-    const [insurance, setInsurance] = useState("");
-    const [notes, setNotes] = useState("");
+    const [mode, setMode] = useState<Shipment["mode"]>(
+        initialShipment?.mode ?? "Road",
+    );
+    const [eta, setEta] = useState(
+        initialShipment?.eta
+            ? initialShipment.eta.toISOString().slice(0, 10)
+            : "",
+    );
+    const [weight, setWeight] = useState(String(initialShipment?.weight ?? ""));
+    const [pieces, setPieces] = useState(String(initialShipment?.pieces ?? ""));
+    const [contents, setContents] = useState(
+        initialShipment?.contents && initialShipment.contents !== "—"
+            ? initialShipment.contents
+            : "",
+    );
+    const [cargoType, setCargoType] = useState<Shipment["cargoType"]>(
+        initialShipment?.cargoType ?? "General",
+    );
+    const [declaredValue, setDeclaredValue] = useState(
+        initialShipment?.declaredValue && initialShipment.declaredValue !== "—"
+            ? initialShipment.declaredValue
+            : "",
+    );
+    const [insurance, setInsurance] = useState(
+        initialShipment?.insurance && initialShipment.insurance !== "—"
+            ? initialShipment.insurance
+            : "",
+    );
+    const [notes, setNotes] = useState(initialShipment?.notes ?? "");
 
     // Consignor & Consignee
-    const [consignor, setConsignor] = useState<Party>(emptyParty());
-    const [consignee, setConsignee] = useState<Party>(emptyParty());
+    const [consignor, setConsignor] = useState<Party>(
+        initialShipment?.consignor ?? {
+            ...emptyParty(),
+            companyName: initialShipment?.customer ?? "",
+            cityTown: initialShipment?.origin ?? "",
+            country: initialShipment?.originCountry ?? "",
+            tel:
+                initialShipment?.phone && initialShipment.phone !== "—"
+                    ? initialShipment.phone
+                    : "",
+            email:
+                initialShipment?.email && initialShipment.email !== "—"
+                    ? initialShipment.email
+                    : "",
+            contactName:
+                initialShipment?.contact && initialShipment.contact !== "—"
+                    ? initialShipment.contact
+                    : "",
+        },
+    );
+    const [consignee, setConsignee] = useState<Party>(
+        initialShipment?.consignee ?? {
+            ...emptyParty(),
+            cityTown: initialShipment?.dest ?? "",
+            country: initialShipment?.destCountry ?? "",
+        },
+    );
 
     const [submitting, setSubmitting] = useState(false);
     const [successShipment, setSuccessShipment] = useState<Shipment | null>(
@@ -191,6 +246,60 @@ export default function NewShipmentModal({ onClose }: Props) {
             setTimeout(() => setCopied(false), 2000);
         });
     }
+
+    useEffect(() => {
+        if (!initialShipment) return;
+
+        setFormType(initialShipment.type);
+        setMode(initialShipment.mode);
+        setEta(initialShipment.eta.toISOString().slice(0, 10));
+        setWeight(String(initialShipment.weight ?? ""));
+        setPieces(String(initialShipment.pieces ?? ""));
+        setContents(
+            initialShipment.contents && initialShipment.contents !== "—"
+                ? initialShipment.contents
+                : "",
+        );
+        setCargoType(initialShipment.cargoType ?? "General");
+        setDeclaredValue(
+            initialShipment.declaredValue && initialShipment.declaredValue !== "—"
+                ? initialShipment.declaredValue
+                : "",
+        );
+        setInsurance(
+            initialShipment.insurance && initialShipment.insurance !== "—"
+                ? initialShipment.insurance
+                : "",
+        );
+        setNotes(initialShipment.notes ?? "");
+        setConsignor(
+            initialShipment.consignor ?? {
+                ...emptyParty(),
+                companyName: initialShipment.customer,
+                cityTown: initialShipment.origin,
+                country: initialShipment.originCountry,
+                tel:
+                    initialShipment.phone && initialShipment.phone !== "—"
+                        ? initialShipment.phone
+                        : "",
+                email:
+                    initialShipment.email && initialShipment.email !== "—"
+                        ? initialShipment.email
+                        : "",
+                contactName:
+                    initialShipment.contact && initialShipment.contact !== "—"
+                        ? initialShipment.contact
+                        : "",
+            },
+        );
+        setConsignee(
+            initialShipment.consignee ?? {
+                ...emptyParty(),
+                cityTown: initialShipment.dest,
+                country: initialShipment.destCountry,
+            },
+        );
+    }, [initialShipment]);
 
     const handleSubmit = async () => {
         const origin = consignor.cityTown.trim();
@@ -229,6 +338,16 @@ export default function NewShipmentModal({ onClose }: Props) {
                 consignor,
                 consignee,
             };
+
+            if (isEdit && initialShipment) {
+                const updated = await updateShipmentApi(initialShipment.id, payload);
+                if (onSaved) {
+                    onSaved(updated);
+                }
+                showToast("Shipment updated", "green");
+                onClose();
+                return;
+            }
 
             const res = await fetch("/api/shipments", {
                 method: "POST",
@@ -320,7 +439,11 @@ export default function NewShipmentModal({ onClose }: Props) {
                         className="modal-title"
                         style={{ fontSize: successShipment ? 13 : undefined }}
                     >
-                        {successShipment ? "Shipment Created" : "New Shipment"}
+                        {successShipment
+                            ? "Shipment Created"
+                            : isEdit
+                              ? "Edit Shipment"
+                              : "New Shipment"}
                     </span>
                     <button className="modal-close" onClick={onClose}>
                         <svg
@@ -656,7 +779,13 @@ export default function NewShipmentModal({ onClose }: Props) {
                             onClick={handleSubmit}
                             disabled={submitting}
                         >
-                            {submitting ? "Creating…" : "Create Shipment"}
+                            {submitting
+                                ? isEdit
+                                    ? "Saving…"
+                                    : "Creating…"
+                                : isEdit
+                                  ? "Save Changes"
+                                  : "Create Shipment"}
                         </button>
                     </div>
                 )}
