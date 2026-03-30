@@ -41,7 +41,7 @@ class AdminUserSeeder extends Seeder
                 'is_active' => true,
             ]);
         } else {
-            $user->name = 'Admin User';
+            $user->name = 'Administrator';
             $user->is_active = true;
 
             if ($adminPassword !== '') {
