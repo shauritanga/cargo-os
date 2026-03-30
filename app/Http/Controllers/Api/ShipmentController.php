@@ -90,7 +90,19 @@ class ShipmentController extends Controller
     {
         $shipment = Shipment::findOrFail($id);
 
+        $isFullUpdate = $request->isMethod('put');
+        $presence = $isFullUpdate ? 'required' : 'sometimes';
+
         $validated = $request->validate([
+            'type'            => "{$presence}|in:international,domestic",
+            'origin'          => "{$presence}|string|max:255",
+            'origin_country'  => "{$presence}|nullable|string|max:10",
+            'dest'            => "{$presence}|string|max:255",
+            'dest_country'    => "{$presence}|nullable|string|max:10",
+            'customer'        => "{$presence}|string|max:255",
+            'weight'          => "{$presence}|nullable|numeric|min:0",
+            'mode'            => "{$presence}|in:Sea,Air,Road,Rail",
+            'cargo_type'      => "{$presence}|string",
             'status'         => 'sometimes|in:transit,delivered,pending,delayed,customs',
             'reason'         => 'sometimes|nullable|string|max:2000',
             'override'       => 'sometimes|boolean',
@@ -98,14 +110,17 @@ class ShipmentController extends Controller
             'occurred_at'    => 'required_with:status|date',
             'recipient_name' => 'required_if:status,delivered|nullable|string|max:255',
             'recipient_phone' => 'required_if:status,delivered|nullable|string|max:50',
-            'eta'            => 'sometimes|nullable|date',
-            'notes'          => 'sometimes|nullable|string',
-            'contact'        => 'sometimes|nullable|string',
-            'email'          => 'sometimes|nullable|email',
-            'phone'          => 'sometimes|nullable|string',
-            'declared_value' => 'sometimes|nullable|string',
-            'insurance'      => 'sometimes|nullable|string',
-            'pieces'         => 'sometimes|nullable|integer|min:1',
+            'eta'             => "{$presence}|nullable|date",
+            'notes'           => "{$presence}|nullable|string",
+            'contact'         => "{$presence}|nullable|string|max:255",
+            'email'           => "{$presence}|nullable|email|max:255",
+            'phone'           => "{$presence}|nullable|string|max:50",
+            'declared_value'  => "{$presence}|nullable|string|max:100",
+            'insurance'       => "{$presence}|nullable|string|max:100",
+            'pieces'          => "{$presence}|nullable|integer|min:1",
+            'contents'        => "{$presence}|nullable|string|max:500",
+            'consignor'       => "{$presence}|nullable|array",
+            'consignee'       => "{$presence}|nullable|array",
         ]);
 
         if (array_key_exists('status', $validated)) {
@@ -117,7 +132,29 @@ class ShipmentController extends Controller
             );
         }
 
-        $attributes = Arr::except($validated, ['status', 'reason', 'override', 'override_reason', 'occurred_at', 'recipient_name', 'recipient_phone']);
+        $attributes = Arr::only($validated, [
+            'type',
+            'origin',
+            'origin_country',
+            'dest',
+            'dest_country',
+            'customer',
+            'weight',
+            'mode',
+            'cargo_type',
+            'eta',
+            'notes',
+            'contact',
+            'email',
+            'phone',
+            'declared_value',
+            'insurance',
+            'pieces',
+            'contents',
+            'consignor',
+            'consignee',
+        ]);
+
         if ($attributes !== []) {
             if ($shipment->status !== 'pending') {
                 return response()->json([
