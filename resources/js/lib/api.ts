@@ -689,7 +689,16 @@ export async function convertBookingToShipment(id: string): Promise<Booking> {
 
 export async function updateShipmentApi(
     id: string,
-    input: Partial<{
+    input: {
+        type: "international" | "domestic";
+        origin: string;
+        origin_country: string | null;
+        dest: string;
+        dest_country: string | null;
+        customer: string;
+        weight: number;
+        mode: "Sea" | "Air" | "Road" | "Rail";
+        cargo_type: string;
         eta: string | null;
         notes: string | null;
         contact: string | null;
@@ -699,10 +708,12 @@ export async function updateShipmentApi(
         insurance: string | null;
         pieces: number | null;
         contents: string | null;
-    }>,
+        consignor: Record<string, unknown> | null;
+        consignee: Record<string, unknown> | null;
+    },
 ): Promise<Shipment> {
     const shipment = await apiJson<any>(`/api/shipments/${id}`, {
-        method: "PATCH",
+        method: "PUT",
         body: JSON.stringify(input),
     });
 

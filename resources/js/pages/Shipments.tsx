@@ -17,6 +17,8 @@ import type {
     Shipment,
     ShipmentStatus,
     TransportMode,
+    ShipmentType,
+    CargoType,
     Column,
     TimelineStep,
     ShipmentStatusEvent,
@@ -175,6 +177,15 @@ export default function Shipments() {
     const [transitionBusy, setTransitionBusy] = useState(false);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editBusy, setEditBusy] = useState(false);
+    const [editType, setEditType] = useState<ShipmentType>("international");
+    const [editOrigin, setEditOrigin] = useState("");
+    const [editOriginCountry, setEditOriginCountry] = useState("");
+    const [editDest, setEditDest] = useState("");
+    const [editDestCountry, setEditDestCountry] = useState("");
+    const [editCustomer, setEditCustomer] = useState("");
+    const [editWeight, setEditWeight] = useState("");
+    const [editMode, setEditMode] = useState<TransportMode>("Road");
+    const [editCargoType, setEditCargoType] = useState<CargoType>("General");
     const [editEta, setEditEta] = useState("");
     const [editContact, setEditContact] = useState("");
     const [editEmail, setEditEmail] = useState("");
@@ -551,6 +562,15 @@ export default function Shipments() {
             return;
         }
 
+        setEditType(shipment.type);
+        setEditOrigin(shipment.origin);
+        setEditOriginCountry(shipment.originCountry ?? "");
+        setEditDest(shipment.dest);
+        setEditDestCountry(shipment.destCountry ?? "");
+        setEditCustomer(shipment.customer);
+        setEditWeight(String(shipment.weight ?? ""));
+        setEditMode(shipment.mode);
+        setEditCargoType((shipment.cargoType ?? "General") as CargoType);
         setEditEta(toLocalDateTimeInput(shipment.eta));
         setEditContact(shipment.contact === "—" ? "" : shipment.contact);
         setEditEmail(shipment.email === "—" ? "" : shipment.email);
@@ -578,6 +598,21 @@ export default function Shipments() {
         }
 
         const piecesValue = Number.parseInt(editPieces, 10);
+        const weightValue = Number.parseFloat(editWeight);
+
+        if (!editOrigin.trim() || !editDest.trim() || !editCustomer.trim()) {
+            showToast(
+                "Origin, destination, and customer are required.",
+                "amber",
+            );
+            return;
+        }
+
+        if (!Number.isFinite(weightValue) || weightValue < 0) {
+            showToast("Weight must be a valid number of 0 or more.", "amber");
+            return;
+        }
+
         if (
             editPieces.trim().length > 0 &&
             (!Number.isFinite(piecesValue) || piecesValue < 1)
@@ -589,6 +624,15 @@ export default function Shipments() {
         setEditBusy(true);
         try {
             const updated = await updateShipmentApi(detailShipment.id, {
+                type: editType,
+                origin: editOrigin.trim(),
+                origin_country: editOriginCountry.trim() || null,
+                dest: editDest.trim(),
+                dest_country: editDestCountry.trim() || null,
+                customer: editCustomer.trim(),
+                weight: weightValue,
+                mode: editMode,
+                cargo_type: editCargoType,
                 eta: editEta || null,
                 contact: editContact.trim() || null,
                 email: editEmail.trim() || null,
@@ -598,6 +642,8 @@ export default function Shipments() {
                 pieces: editPieces.trim().length > 0 ? piecesValue : null,
                 contents: editContents.trim() || null,
                 notes: editNotes.trim() || null,
+                consignor: detailShipment.consignor ?? null,
+                consignee: detailShipment.consignee ?? null,
             });
 
             setShipments((prev) =>
@@ -2136,6 +2182,159 @@ export default function Shipments() {
                         <div className="modal-body" style={{ padding: 20 }}>
                             <div className="form-row">
                                 <div className="form-group">
+                                    <label className="form-label">Type</label>
+                                    <select
+                                        className="form-select"
+                                        value={editType}
+                                        onChange={(e) =>
+                                            setEditType(
+                                                e.target.value as ShipmentType,
+                                            )
+                                        }
+                                    >
+                                        <option value="international">
+                                            International
+                                        </option>
+                                        <option value="domestic">
+                                            Domestic
+                                        </option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Mode</label>
+                                    <select
+                                        className="form-select"
+                                        value={editMode}
+                                        onChange={(e) =>
+                                            setEditMode(
+                                                e.target.value as TransportMode,
+                                            )
+                                        }
+                                    >
+                                        <option value="Sea">Sea</option>
+                                        <option value="Air">Air</option>
+                                        <option value="Road">Road</option>
+                                        <option value="Rail">Rail</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Origin</label>
+                                    <input
+                                        className="form-input"
+                                        value={editOrigin}
+                                        onChange={(e) =>
+                                            setEditOrigin(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Origin Country
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editOriginCountry}
+                                        onChange={(e) =>
+                                            setEditOriginCountry(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Destination
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editDest}
+                                        onChange={(e) =>
+                                            setEditDest(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Destination Country
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editDestCountry}
+                                        onChange={(e) =>
+                                            setEditDestCountry(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Customer
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        value={editCustomer}
+                                        onChange={(e) =>
+                                            setEditCustomer(e.target.value)
+                                        }
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Weight</label>
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={0}
+                                        step="0.01"
+                                        value={editWeight}
+                                        onChange={(e) =>
+                                            setEditWeight(e.target.value)
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">
+                                        Cargo Type
+                                    </label>
+                                    <select
+                                        className="form-select"
+                                        value={editCargoType}
+                                        onChange={(e) =>
+                                            setEditCargoType(
+                                                e.target.value as CargoType,
+                                            )
+                                        }
+                                    >
+                                        <option value="General">General</option>
+                                        <option value="Electronics">
+                                            Electronics
+                                        </option>
+                                        <option value="Perishable">
+                                            Perishable
+                                        </option>
+                                        <option value="Hazardous">
+                                            Hazardous
+                                        </option>
+                                        <option value="Automotive">
+                                            Automotive
+                                        </option>
+                                        <option value="Textiles">
+                                            Textiles
+                                        </option>
+                                        <option value="Machinery">
+                                            Machinery
+                                        </option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
                                     <label className="form-label">ETA</label>
                                     <input
                                         className="form-input"
@@ -2146,6 +2345,9 @@ export default function Shipments() {
                                         }
                                     />
                                 </div>
+                            </div>
+
+                            <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">Pieces</label>
                                     <input
