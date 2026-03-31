@@ -26,6 +26,7 @@ export default function Bookings() {
         reloadBookings,
         globalSearch,
         setGlobalSearch,
+        isMobile,
     } = useApp();
     const [statusFilter, setStatusFilter] = useState("all");
     const [urgencyFilter, setUrgencyFilter] = useState("all");
@@ -59,6 +60,7 @@ export default function Bookings() {
     }, [bookings, statusFilter, urgencyFilter, modeFilter, globalSearch]);
 
     const pageItems = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+    const effectiveView = isMobile ? "grid" : view;
     const detailBooking = detailId
         ? (bookings.find((b) => b.id === detailId) ?? null)
         : null;
@@ -408,65 +410,67 @@ export default function Bookings() {
                                 gap: 8,
                             }}
                         >
-                            <div className="view-toggle">
-                                <button
-                                    className={`view-btn${view === "grid" ? " active" : ""}`}
-                                    onClick={() => setView("grid")}
-                                    title="Grid view"
-                                >
-                                    <svg
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="1.7"
-                                        strokeLinecap="round"
+                            {!isMobile && (
+                                <div className="view-toggle">
+                                    <button
+                                        className={`view-btn${view === "grid" ? " active" : ""}`}
+                                        onClick={() => setView("grid")}
+                                        title="Grid view"
                                     >
-                                        <rect
-                                            x="1"
-                                            y="1"
-                                            width="5"
-                                            height="5"
-                                            rx="1"
-                                        />
-                                        <rect
-                                            x="8"
-                                            y="1"
-                                            width="5"
-                                            height="5"
-                                            rx="1"
-                                        />
-                                        <rect
-                                            x="1"
-                                            y="8"
-                                            width="5"
-                                            height="5"
-                                            rx="1"
-                                        />
-                                        <rect
-                                            x="8"
-                                            y="8"
-                                            width="5"
-                                            height="5"
-                                            rx="1"
-                                        />
-                                    </svg>
-                                </button>
-                                <button
-                                    className={`view-btn${view === "list" ? " active" : ""}`}
-                                    onClick={() => setView("list")}
-                                    title="List view"
-                                >
-                                    <svg
-                                        viewBox="0 0 14 14"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="1.7"
-                                        strokeLinecap="round"
+                                        <svg
+                                            viewBox="0 0 14 14"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.7"
+                                            strokeLinecap="round"
+                                        >
+                                            <rect
+                                                x="1"
+                                                y="1"
+                                                width="5"
+                                                height="5"
+                                                rx="1"
+                                            />
+                                            <rect
+                                                x="8"
+                                                y="1"
+                                                width="5"
+                                                height="5"
+                                                rx="1"
+                                            />
+                                            <rect
+                                                x="1"
+                                                y="8"
+                                                width="5"
+                                                height="5"
+                                                rx="1"
+                                            />
+                                            <rect
+                                                x="8"
+                                                y="8"
+                                                width="5"
+                                                height="5"
+                                                rx="1"
+                                            />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        className={`view-btn${view === "list" ? " active" : ""}`}
+                                        onClick={() => setView("list")}
+                                        title="List view"
                                     >
-                                        <path d="M1 3h12M1 7h12M1 11h12" />
-                                    </svg>
-                                </button>
-                            </div>
+                                        <svg
+                                            viewBox="0 0 14 14"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.7"
+                                            strokeLinecap="round"
+                                        >
+                                            <path d="M1 3h12M1 7h12M1 11h12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
                             <button
                                 className="btn"
                                 style={{
@@ -506,7 +510,7 @@ export default function Bookings() {
 
                 {/* GRID / LIST VIEW */}
                 <div>
-                    {view === "grid" ? (
+                    {effectiveView === "grid" ? (
                         <div
                             style={{
                                 display: "grid",

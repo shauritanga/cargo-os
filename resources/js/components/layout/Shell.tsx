@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import Dashboard from "../../pages/Dashboard";
@@ -18,14 +18,29 @@ import Tracking from "../../pages/Tracking";
 import NewShipmentModal from "../shared/NewShipmentModal";
 import Toast from "../shared/Toast";
 import { useApp } from "../../context/AppContext";
+import type { ShipmentDraft } from "../../types";
 
 export default function Shell() {
-    const { activePage, toast } = useApp();
+    const {
+        activePage,
+        toast,
+        isMobile,
+        sidebarCollapsed,
+        setSidebarCollapsed,
+    } = useApp();
     const [showModal, setShowModal] = useState(false);
+    const [newShipmentDraft, setNewShipmentDraft] =
+        useState<ShipmentDraft | null>(null);
 
     return (
         <div className="shell">
             <Sidebar />
+            {isMobile && !sidebarCollapsed && (
+                <div
+                    className="mobile-sidebar-backdrop"
+                    onClick={() => setSidebarCollapsed(true)}
+                />
+            )}
             <div className="main">
                 <Topbar onNewShipment={() => setShowModal(true)} />
 
@@ -102,7 +117,12 @@ export default function Shell() {
             </div>
 
             {showModal && (
-                <NewShipmentModal onClose={() => setShowModal(false)} />
+                <NewShipmentModal
+                    initialDraft={newShipmentDraft ?? undefined}
+                    onDraftChange={(draft) => setNewShipmentDraft(draft)}
+                    onResetDraft={() => setNewShipmentDraft(null)}
+                    onClose={() => setShowModal(false)}
+                />
             )}
             {toast && <Toast message={toast.message} color={toast.color} />}
         </div>

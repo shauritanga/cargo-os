@@ -19,13 +19,24 @@ interface DeferredPromptEvent extends Event {
 }
 
 function NavItem({ pageId, label, badge, badgeColor, icon }: NavItemProps) {
-    const { activePage, setActivePage, sidebarCollapsed } = useApp();
+    const {
+        activePage,
+        setActivePage,
+        sidebarCollapsed,
+        isMobile,
+        setSidebarCollapsed,
+    } = useApp();
     const isActive = activePage === pageId;
     return (
         <div
             className={`nav-item${isActive ? " active" : ""}`}
             title={sidebarCollapsed ? label : undefined}
-            onClick={() => setActivePage(pageId)}
+            onClick={() => {
+                setActivePage(pageId);
+                if (isMobile) {
+                    setSidebarCollapsed(true);
+                }
+            }}
         >
             <span className="nav-icon">{icon}</span>
             <span className="nav-label">{label}</span>

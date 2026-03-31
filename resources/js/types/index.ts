@@ -25,6 +25,29 @@ export interface Party {
     contactName: string;
 }
 
+export type ShipmentDraftSourceMode = "existing" | "new";
+
+export interface ShipmentDraft {
+    formType: ShipmentType;
+    mode: TransportMode;
+    eta: string;
+    weight: string;
+    pieces: string;
+    contents: string;
+    cargoType: CargoType;
+    declaredValue: string;
+    insurance: string;
+    notes: string;
+    consignorSource: ShipmentDraftSourceMode;
+    consigneeSource: ShipmentDraftSourceMode;
+    selectedConsignorCustomerId: string;
+    selectedConsigneeCustomerId: string;
+    consignor: Party;
+    consignee: Party;
+    consignorManual: Party;
+    consigneeManual: Party;
+}
+
 export interface Shipment {
     id: string;
     type: ShipmentType;
@@ -168,6 +191,9 @@ export interface Customer {
     email: string;
     phone: string;
     country: string;
+    countryCode: string;
+    cityTown: string;
+    streetAddress: string;
     type: CustomerType;
     status: CustomerStatus;
     shipments: number;

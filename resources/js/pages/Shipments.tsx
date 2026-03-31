@@ -148,6 +148,7 @@ export default function Shipments() {
         hasRole,
         globalSearch,
         setGlobalSearch,
+        isMobile,
     } = useApp();
     const [columns, setColumns] = useState<Column[]>(INIT_COLUMNS);
     const [statusFilter, setStatusFilter] = useState("all");
@@ -1056,315 +1057,431 @@ export default function Shipments() {
                     )}
                 </div>
 
-                {/* TABLE CARD */}
-                <div className="card" style={{ overflow: "hidden" }}>
-                    <div className="sh-table-wrap">
-                        <table className="sh-table">
-                            <thead>
-                                <tr>
-                                    <th style={{ width: 36, paddingLeft: 16 }}>
-                                        <input
-                                            type="checkbox"
-                                            className="sh-checkbox"
-                                            checked={
-                                                pageItems.length > 0 &&
-                                                pageItems.every((s) =>
-                                                    selectedIds.has(s.id),
-                                                )
-                                            }
-                                            onChange={(e) =>
-                                                toggleAll(e.target.checked)
-                                            }
-                                            onClick={(e) => e.stopPropagation()}
+                {/* TABLE / MOBILE CARDS */}
+                {isMobile ? (
+                    <div className="mobile-sh-list">
+                        {pageItems.length === 0 ? (
+                            <div
+                                className="card"
+                                style={{ overflow: "hidden" }}
+                            >
+                                <div className="empty-state">
+                                    <svg
+                                        viewBox="0 0 40 40"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.2"
+                                        strokeLinecap="round"
+                                    >
+                                        <rect
+                                            x="4"
+                                            y="8"
+                                            width="32"
+                                            height="28"
+                                            rx="3"
                                         />
-                                    </th>
-                                    {visibleCols.map((c) => (
-                                        <th
-                                            key={c.key}
-                                            className={
-                                                sortField === c.key
-                                                    ? "sorted"
-                                                    : ""
-                                            }
-                                            onClick={() => handleSort(c.key)}
-                                        >
-                                            {c.label}
-                                            <span className="sort-icon">
-                                                {sortField === c.key
-                                                    ? sortDir > 0
-                                                        ? "↑"
-                                                        : "↓"
-                                                    : "↕"}
-                                            </span>
-                                        </th>
-                                    ))}
-                                    <th style={{ width: 40 }} />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {pageItems.length === 0 ? (
-                                    <tr>
-                                        <td
-                                            colSpan={visibleCols.length + 2}
-                                            style={{ padding: 0 }}
-                                        >
-                                            <div className="empty-state">
-                                                <svg
-                                                    viewBox="0 0 40 40"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="1.2"
-                                                    strokeLinecap="round"
-                                                >
-                                                    <rect
-                                                        x="4"
-                                                        y="8"
-                                                        width="32"
-                                                        height="28"
-                                                        rx="3"
-                                                    />
-                                                    <path d="M13 4v8M27 4v8M4 18h32" />
-                                                </svg>
-                                                <p>
-                                                    No shipments match your
-                                                    filters
-                                                </p>
+                                        <path d="M13 4v8M27 4v8M4 18h32" />
+                                    </svg>
+                                    <p>No shipments match your filters</p>
+                                </div>
+                            </div>
+                        ) : (
+                            pageItems.map((s) => {
+                                const isIntl = s.type === "international";
+                                return (
+                                    <div
+                                        key={s.id}
+                                        className="mobile-sh-card"
+                                        onClick={() => setDetailId(s.id)}
+                                    >
+                                        <div className="mobile-sh-card-top">
+                                            <div className="mobile-sh-id">
+                                                {s.awbNumber || s.id}
                                             </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    pageItems.map((s) => {
-                                        const isIntl =
-                                            s.type === "international";
-                                        const isSelected =
-                                            selectedIds.has(s.id) ||
-                                            detailId === s.id;
-                                        return (
-                                            <tr
-                                                key={s.id}
+                                            <Badge variant={s.status}>
+                                                {STATUS_LABEL[s.status]}
+                                            </Badge>
+                                        </div>
+                                        <div className="mobile-sh-route">
+                                            <strong>{s.origin}</strong>
+                                            <span>→</span>
+                                            <strong>{s.dest}</strong>
+                                        </div>
+                                        <div className="mobile-sh-meta">
+                                            <span>
+                                                {isIntl
+                                                    ? "🌐 Intl"
+                                                    : "🏠 Local"}
+                                            </span>
+                                            <span>{s.customer}</span>
+                                            <span>
+                                                {s.weight.toLocaleString()} kg
+                                            </span>
+                                        </div>
+                                        <div className="mobile-sh-meta muted">
+                                            <span>
+                                                <ModeIcon mode={s.mode} />{" "}
+                                                {s.mode}
+                                            </span>
+                                            <span>ETA {fmtDate(s.eta)}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                        <div className="card" style={{ overflow: "hidden" }}>
+                            <Pagination
+                                currentPage={page}
+                                totalItems={filtered.length}
+                                perPage={PER_PAGE}
+                                onPageChange={setPage}
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <div className="card" style={{ overflow: "hidden" }}>
+                        <div className="sh-table-wrap">
+                            <table className="sh-table">
+                                <thead>
+                                    <tr>
+                                        <th
+                                            style={{
+                                                width: 36,
+                                                paddingLeft: 16,
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="sh-checkbox"
+                                                checked={
+                                                    pageItems.length > 0 &&
+                                                    pageItems.every((s) =>
+                                                        selectedIds.has(s.id),
+                                                    )
+                                                }
+                                                onChange={(e) =>
+                                                    toggleAll(e.target.checked)
+                                                }
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                            />
+                                        </th>
+                                        {visibleCols.map((c) => (
+                                            <th
+                                                key={c.key}
                                                 className={
-                                                    isSelected ? "selected" : ""
+                                                    sortField === c.key
+                                                        ? "sorted"
+                                                        : ""
                                                 }
                                                 onClick={() =>
-                                                    setDetailId(s.id)
+                                                    handleSort(c.key)
                                                 }
                                             >
-                                                <td style={{ paddingLeft: 16 }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        className="sh-checkbox"
-                                                        checked={selectedIds.has(
-                                                            s.id,
-                                                        )}
-                                                        onChange={(e) =>
-                                                            toggleRow(
-                                                                s.id,
-                                                                e.target
-                                                                    .checked,
-                                                            )
-                                                        }
-                                                        onClick={(e) =>
-                                                            e.stopPropagation()
-                                                        }
-                                                    />
-                                                </td>
-                                                {visibleCols.map((c) => {
-                                                    if (c.key === "id")
-                                                        return (
-                                                            <td
-                                                                key="id"
-                                                                className="mono"
-                                                            >
-                                                                {s.awbNumber ||
-                                                                    s.id}
-                                                            </td>
-                                                        );
-                                                    if (c.key === "type")
-                                                        return (
-                                                            <td key="type">
-                                                                <span
-                                                                    style={{
-                                                                        display:
-                                                                            "inline-flex",
-                                                                        alignItems:
-                                                                            "center",
-                                                                        gap: 4,
-                                                                        fontSize: 11,
-                                                                        fontWeight: 600,
-                                                                        padding:
-                                                                            "2px 8px",
-                                                                        borderRadius: 20,
-                                                                        background:
-                                                                            isIntl
-                                                                                ? "var(--blue-dim)"
-                                                                                : "var(--green-dim)",
-                                                                        color: isIntl
-                                                                            ? "var(--blue)"
-                                                                            : "var(--green)",
-                                                                    }}
-                                                                >
-                                                                    {isIntl
-                                                                        ? "🌐 Intl"
-                                                                        : "🏠 Local"}
-                                                                </span>
-                                                            </td>
-                                                        );
-                                                    if (c.key === "route")
-                                                        return (
-                                                            <td key="route">
-                                                                <span
-                                                                    style={{
-                                                                        fontWeight: 500,
-                                                                    }}
-                                                                >
-                                                                    {s.origin}
-                                                                </span>
-                                                                <span className="route-arrow">
-                                                                    {" "}
-                                                                    →{" "}
-                                                                </span>
-                                                                <span
-                                                                    style={{
-                                                                        fontWeight: 500,
-                                                                    }}
-                                                                >
-                                                                    {s.dest}
-                                                                </span>
-                                                                <div className="text-muted">
-                                                                    {
-                                                                        s.originCountry
-                                                                    }{" "}
-                                                                    →{" "}
-                                                                    {
-                                                                        s.destCountry
-                                                                    }
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    if (c.key === "customer")
-                                                        return (
-                                                            <td key="customer">
-                                                                {s.customer}
-                                                                <div className="text-muted">
-                                                                    {s.email}
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    if (c.key === "weight")
-                                                        return (
-                                                            <td key="weight">
-                                                                {s.weight.toLocaleString()}{" "}
-                                                                kg
-                                                            </td>
-                                                        );
-                                                    if (c.key === "mode")
-                                                        return (
-                                                            <td key="mode">
-                                                                <ModeIcon
-                                                                    mode={
-                                                                        s.mode
-                                                                    }
-                                                                />
-                                                                {s.mode}
-                                                            </td>
-                                                        );
-                                                    if (c.key === "cargoType")
-                                                        return (
-                                                            <td key="cargo">
-                                                                {s.cargoType ||
-                                                                    "—"}
-                                                            </td>
-                                                        );
-                                                    if (c.key === "containers")
-                                                        return (
-                                                            <td key="containers">
-                                                                {isIntl
-                                                                    ? s.containers ||
-                                                                      "—"
-                                                                    : "—"}
-                                                            </td>
-                                                        );
-                                                    if (c.key === "eta")
-                                                        return (
-                                                            <td key="eta">
-                                                                {fmtDate(s.eta)}
-                                                            </td>
-                                                        );
-                                                    if (c.key === "created")
-                                                        return (
-                                                            <td key="created">
-                                                                {fmtDate(
-                                                                    s.created,
-                                                                )}
-                                                            </td>
-                                                        );
-                                                    if (c.key === "status")
-                                                        return (
-                                                            <td key="status">
-                                                                <Badge
-                                                                    variant={
-                                                                        s.status
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        STATUS_LABEL[
-                                                                            s
-                                                                                .status
-                                                                        ]
-                                                                    }
-                                                                </Badge>
-                                                            </td>
-                                                        );
-                                                    return <td key={c.key} />;
-                                                })}
-                                                <td>
-                                                    <button
+                                                {c.label}
+                                                <span className="sort-icon">
+                                                    {sortField === c.key
+                                                        ? sortDir > 0
+                                                            ? "↑"
+                                                            : "↓"
+                                                        : "↕"}
+                                                </span>
+                                            </th>
+                                        ))}
+                                        <th style={{ width: 40 }} />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pageItems.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={visibleCols.length + 2}
+                                                style={{ padding: 0 }}
+                                            >
+                                                <div className="empty-state">
+                                                    <svg
+                                                        viewBox="0 0 40 40"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="1.2"
+                                                        strokeLinecap="round"
+                                                    >
+                                                        <rect
+                                                            x="4"
+                                                            y="8"
+                                                            width="32"
+                                                            height="28"
+                                                            rx="3"
+                                                        />
+                                                        <path d="M13 4v8M27 4v8M4 18h32" />
+                                                    </svg>
+                                                    <p>
+                                                        No shipments match your
+                                                        filters
+                                                    </p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        pageItems.map((s) => {
+                                            const isIntl =
+                                                s.type === "international";
+                                            const isSelected =
+                                                selectedIds.has(s.id) ||
+                                                detailId === s.id;
+                                            return (
+                                                <tr
+                                                    key={s.id}
+                                                    className={
+                                                        isSelected
+                                                            ? "selected"
+                                                            : ""
+                                                    }
+                                                    onClick={() =>
+                                                        setDetailId(s.id)
+                                                    }
+                                                >
+                                                    <td
                                                         style={{
-                                                            background: "none",
-                                                            border: "none",
-                                                            cursor: "pointer",
-                                                            color: "var(--text-3)",
-                                                            padding: 4,
-                                                            borderRadius: 5,
-                                                            display: "grid",
-                                                            placeItems:
-                                                                "center",
-                                                        }}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setDetailId(s.id);
+                                                            paddingLeft: 16,
                                                         }}
                                                     >
-                                                        <svg
-                                                            viewBox="0 0 14 14"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="1.7"
-                                                            strokeLinecap="round"
+                                                        <input
+                                                            type="checkbox"
+                                                            className="sh-checkbox"
+                                                            checked={selectedIds.has(
+                                                                s.id,
+                                                            )}
+                                                            onChange={(e) =>
+                                                                toggleRow(
+                                                                    s.id,
+                                                                    e.target
+                                                                        .checked,
+                                                                )
+                                                            }
+                                                            onClick={(e) =>
+                                                                e.stopPropagation()
+                                                            }
+                                                        />
+                                                    </td>
+                                                    {visibleCols.map((c) => {
+                                                        if (c.key === "id")
+                                                            return (
+                                                                <td
+                                                                    key="id"
+                                                                    className="mono"
+                                                                >
+                                                                    {s.awbNumber ||
+                                                                        s.id}
+                                                                </td>
+                                                            );
+                                                        if (c.key === "type")
+                                                            return (
+                                                                <td key="type">
+                                                                    <span
+                                                                        style={{
+                                                                            display:
+                                                                                "inline-flex",
+                                                                            alignItems:
+                                                                                "center",
+                                                                            gap: 4,
+                                                                            fontSize: 11,
+                                                                            fontWeight: 600,
+                                                                            padding:
+                                                                                "2px 8px",
+                                                                            borderRadius: 20,
+                                                                            background:
+                                                                                isIntl
+                                                                                    ? "var(--blue-dim)"
+                                                                                    : "var(--green-dim)",
+                                                                            color: isIntl
+                                                                                ? "var(--blue)"
+                                                                                : "var(--green)",
+                                                                        }}
+                                                                    >
+                                                                        {isIntl
+                                                                            ? "🌐 Intl"
+                                                                            : "🏠 Local"}
+                                                                    </span>
+                                                                </td>
+                                                            );
+                                                        if (c.key === "route")
+                                                            return (
+                                                                <td key="route">
+                                                                    <span
+                                                                        style={{
+                                                                            fontWeight: 500,
+                                                                        }}
+                                                                    >
+                                                                        {
+                                                                            s.origin
+                                                                        }
+                                                                    </span>
+                                                                    <span className="route-arrow">
+                                                                        {" "}
+                                                                        →{" "}
+                                                                    </span>
+                                                                    <span
+                                                                        style={{
+                                                                            fontWeight: 500,
+                                                                        }}
+                                                                    >
+                                                                        {s.dest}
+                                                                    </span>
+                                                                    <div className="text-muted">
+                                                                        {
+                                                                            s.originCountry
+                                                                        }{" "}
+                                                                        →{" "}
+                                                                        {
+                                                                            s.destCountry
+                                                                        }
+                                                                    </div>
+                                                                </td>
+                                                            );
+                                                        if (
+                                                            c.key === "customer"
+                                                        )
+                                                            return (
+                                                                <td key="customer">
+                                                                    {s.customer}
+                                                                    <div className="text-muted">
+                                                                        {
+                                                                            s.email
+                                                                        }
+                                                                    </div>
+                                                                </td>
+                                                            );
+                                                        if (c.key === "weight")
+                                                            return (
+                                                                <td key="weight">
+                                                                    {s.weight.toLocaleString()}{" "}
+                                                                    kg
+                                                                </td>
+                                                            );
+                                                        if (c.key === "mode")
+                                                            return (
+                                                                <td key="mode">
+                                                                    <ModeIcon
+                                                                        mode={
+                                                                            s.mode
+                                                                        }
+                                                                    />
+                                                                    {s.mode}
+                                                                </td>
+                                                            );
+                                                        if (
+                                                            c.key ===
+                                                            "cargoType"
+                                                        )
+                                                            return (
+                                                                <td key="cargo">
+                                                                    {s.cargoType ||
+                                                                        "—"}
+                                                                </td>
+                                                            );
+                                                        if (
+                                                            c.key ===
+                                                            "containers"
+                                                        )
+                                                            return (
+                                                                <td key="containers">
+                                                                    {isIntl
+                                                                        ? s.containers ||
+                                                                          "—"
+                                                                        : "—"}
+                                                                </td>
+                                                            );
+                                                        if (c.key === "eta")
+                                                            return (
+                                                                <td key="eta">
+                                                                    {fmtDate(
+                                                                        s.eta,
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        if (c.key === "created")
+                                                            return (
+                                                                <td key="created">
+                                                                    {fmtDate(
+                                                                        s.created,
+                                                                    )}
+                                                                </td>
+                                                            );
+                                                        if (c.key === "status")
+                                                            return (
+                                                                <td key="status">
+                                                                    <Badge
+                                                                        variant={
+                                                                            s.status
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            STATUS_LABEL[
+                                                                                s
+                                                                                    .status
+                                                                            ]
+                                                                        }
+                                                                    </Badge>
+                                                                </td>
+                                                            );
+                                                        return (
+                                                            <td key={c.key} />
+                                                        );
+                                                    })}
+                                                    <td>
+                                                        <button
                                                             style={{
-                                                                width: 13,
-                                                                height: 13,
+                                                                background:
+                                                                    "none",
+                                                                border: "none",
+                                                                cursor: "pointer",
+                                                                color: "var(--text-3)",
+                                                                padding: 4,
+                                                                borderRadius: 5,
+                                                                display: "grid",
+                                                                placeItems:
+                                                                    "center",
+                                                            }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDetailId(
+                                                                    s.id,
+                                                                );
                                                             }}
                                                         >
-                                                            <path d="M5 2h7v7" />
-                                                            <path d="M12 2L2 12" />
-                                                        </svg>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
+                                                            <svg
+                                                                viewBox="0 0 14 14"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="1.7"
+                                                                strokeLinecap="round"
+                                                                style={{
+                                                                    width: 13,
+                                                                    height: 13,
+                                                                }}
+                                                            >
+                                                                <path d="M5 2h7v7" />
+                                                                <path d="M12 2L2 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <Pagination
+                            currentPage={page}
+                            totalItems={filtered.length}
+                            perPage={PER_PAGE}
+                            onPageChange={setPage}
+                        />
                     </div>
-                    <Pagination
-                        currentPage={page}
-                        totalItems={filtered.length}
-                        perPage={PER_PAGE}
-                        onPageChange={setPage}
-                    />
-                </div>
+                )}
             </div>
 
             {/* AIRWAYBILL PRINT MODAL */}

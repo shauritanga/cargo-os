@@ -7,6 +7,7 @@ import type {
     Customer,
     FleetVehicle,
     ManagedUser,
+    Party,
     Permission,
     Route,
     Role,
@@ -250,10 +251,13 @@ function mapCustomer(raw: Record<string, any>): Customer {
     return {
         id: String(raw.id),
         name: raw.name,
-        contact: raw.contact ?? "—",
-        email: raw.email ?? "—",
-        phone: raw.phone ?? "—",
-        country: raw.country ?? "—",
+        contact: raw.contact ?? "",
+        email: raw.email ?? "",
+        phone: raw.phone ?? "",
+        country: raw.country ?? "",
+        countryCode: raw.country_code ?? "",
+        cityTown: raw.city_town ?? "",
+        streetAddress: raw.street_address ?? "",
         type: raw.type,
         status: raw.status,
         shipments: Number(raw.shipments) || 0,
@@ -372,6 +376,17 @@ export async function fetchWarehouses(): Promise<Warehouse[]> {
 export async function fetchCustomers(): Promise<Customer[]> {
     const json = await apiJson<any>("/api/customers?per_page=1000");
     return (json.data ?? json).map(mapCustomer);
+}
+
+export async function fetchCountriesApi(): Promise<
+    { id: number; name: string; code: string }[]
+> {
+    return apiJson("/api/countries");
+}
+
+export async function fetchCitiesApi(code: string): Promise<string[]> {
+    if (!code) return [];
+    return apiJson(`/api/countries/${code}/cities`);
 }
 
 export async function fetchBillingInvoices(): Promise<BillingInvoice[]> {
@@ -539,9 +554,12 @@ export async function deleteWarehouse(id: string): Promise<void> {
 export async function createCustomer(input: {
     name: string;
     contact?: string;
-    email: string;
+    email?: string;
     phone?: string;
     country?: string;
+    country_code?: string;
+    city_town?: string;
+    street_address?: string;
     type?: string;
     status?: string;
     shipments?: number;
@@ -565,6 +583,9 @@ export async function updateCustomer(
         email: string;
         phone: string;
         country: string;
+        country_code: string;
+        city_town: string;
+        street_address: string;
         type: string;
         status: string;
         shipments: number;
@@ -696,9 +717,9 @@ export async function updateShipmentApi(
         dest: string;
         dest_country: string | null;
         customer: string;
-        weight: number;
-        mode: "Sea" | "Air" | "Road" | "Rail";
-        cargo_type: string;
+        weight: number | null;
+        mode: Shipment["mode"];
+        cargo_type: Shipment["cargoType"];
         eta: string | null;
         notes: string | null;
         contact: string | null;
@@ -708,8 +729,8 @@ export async function updateShipmentApi(
         insurance: string | null;
         pieces: number | null;
         contents: string | null;
-        consignor: Record<string, unknown> | null;
-        consignee: Record<string, unknown> | null;
+        consignor: Party | null;
+        consignee: Party | null;
     },
 ): Promise<Shipment> {
     const shipment = await apiJson<any>(`/api/shipments/${id}`, {

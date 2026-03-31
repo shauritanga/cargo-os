@@ -1,8 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
+import SearchableSelect from "../components/shared/SearchableSelect";
 import {
     createCustomer,
     deleteCustomer,
+    fetchCitiesApi,
+    fetchCountriesApi,
     fetchCustomers,
     updateCustomer,
 } from "../lib/api";
@@ -13,6 +16,8 @@ const TYPE_COLOR: Record<CustomerType, string> = {
     SME: "var(--purple)",
     Individual: "var(--amber)",
 };
+
+const displayValue = (value: string) => value.trim() || "—";
 
 export default function Customers() {
     const { showToast, companySettings, globalSearch, setGlobalSearch } =
@@ -39,6 +44,10 @@ export default function Customers() {
 
     const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [countryOptions, setCountryOptions] = useState<
+        { label: string; value: string; code: string }[]
+    >([]);
+    const [cityOptions, setCityOptions] = useState<string[]>([]);
 
     const [form, setForm] = useState({
         name: "",
@@ -46,6 +55,9 @@ export default function Customers() {
         email: "",
         phone: "",
         country: "",
+        countryCode: "",
+        cityTown: "",
+        streetAddress: "",
         type: "SME" as CustomerType,
         status: "active" as CustomerStatus,
         shipments: "0",
@@ -57,8 +69,18 @@ export default function Customers() {
     useEffect(() => {
         const load = async () => {
             try {
-                const data = await fetchCustomers();
-                setCustomers(data);
+                const [customerData, countries] = await Promise.all([
+                    fetchCustomers(),
+                    fetchCountriesApi(),
+                ]);
+                setCustomers(customerData);
+                setCountryOptions(
+                    countries.map((country) => ({
+                        label: country.name,
+                        value: country.code,
+                        code: country.code,
+                    })),
+                );
             } catch (e: any) {
                 showToast(e?.message ?? "Failed to load customers.", "red");
             } finally {
@@ -69,6 +91,47 @@ export default function Customers() {
         load();
     }, [showToast]);
 
+    useEffect(() => {
+        if (!form.countryCode) {
+            setCityOptions([]);
+            return;
+        }
+
+        fetchCitiesApi(form.countryCode)
+            .then(setCityOptions)
+            .catch(() => setCityOptions([]));
+    }, [form.countryCode]);
+
+    useEffect(() => {
+        if (
+            !showModal ||
+            form.countryCode ||
+            !form.country ||
+            countryOptions.length === 0
+        ) {
+            return;
+        }
+
+        const matchedCountry = countryOptions.find(
+            (option) =>
+                option.label.toLowerCase() === form.country.toLowerCase(),
+        );
+
+        if (!matchedCountry) {
+            return;
+        }
+
+        setForm((current) => ({
+            ...current,
+            countryCode: matchedCountry.value,
+        }));
+    }, [
+        countryOptions,
+        form.country,
+        form.countryCode,
+        showModal,
+    ]);
+
     const resetForm = () => {
         setForm({
             name: "",
@@ -76,6 +139,9 @@ export default function Customers() {
             email: "",
             phone: "",
             country: "",
+            countryCode: "",
+            cityTown: "",
+            streetAddress: "",
             type: "SME",
             status: "active",
             shipments: "0",
@@ -93,14 +159,26 @@ export default function Customers() {
     };
 
     const openEditModal = (customer: Customer) => {
+        const matchedCountry =
+            customer.countryCode || !customer.country
+                ? customer.countryCode
+                : (countryOptions.find(
+                      (option) =>
+                          option.label.toLowerCase() ===
+                          customer.country.toLowerCase(),
+                  )?.value ?? "");
+
         setModalMode("edit");
         setEditingId(customer.id);
         setForm({
             name: customer.name,
-            contact: customer.contact === "—" ? "" : customer.contact,
-            email: customer.email === "—" ? "" : customer.email,
-            phone: customer.phone === "—" ? "" : customer.phone,
-            country: customer.country === "—" ? "" : customer.country,
+            contact: customer.contact,
+            email: customer.email,
+            phone: customer.phone,
+            country: customer.country,
+            countryCode: matchedCountry,
+            cityTown: customer.cityTown,
+            streetAddress: customer.streetAddress,
             type: customer.type,
             status: customer.status,
             shipments: String(customer.shipments),
@@ -116,7 +194,7 @@ export default function Customers() {
             const q = globalSearch.trim().toLowerCase();
             const matchQ =
                 !q ||
-                `${c.name} ${c.email} ${c.country} ${c.contact} ${c.phone}`
+                `${c.name} ${c.email} ${c.country} ${c.contact} ${c.phone} ${c.cityTown} ${c.streetAddress}`
                     .toLowerCase()
                     .includes(q);
             const matchType = filterType === "all" || c.type === filterType;
@@ -148,10 +226,9 @@ export default function Customers() {
 
     const handleSave = async () => {
         const name = form.name.trim();
-        const email = form.email.trim();
 
-        if (!name || !email) {
-            showToast("Name and email are required.", "red");
+        if (!name) {
+            showToast("Company / name is required.", "red");
             return;
         }
 
@@ -160,9 +237,12 @@ export default function Customers() {
             const payload = {
                 name,
                 contact: form.contact.trim() || undefined,
-                email,
+                email: form.email.trim() || undefined,
                 phone: form.phone.trim() || undefined,
                 country: form.country.trim() || undefined,
+                country_code: form.countryCode || undefined,
+                city_town: form.cityTown.trim() || undefined,
+                street_address: form.streetAddress.trim() || undefined,
                 type: form.type,
                 status: form.status,
                 shipments: Number(form.shipments || 0),
@@ -531,7 +611,7 @@ export default function Customers() {
                                     </td>
                                     <td>
                                         <div style={{ fontSize: 13 }}>
-                                            {c.contact}
+                                            {displayValue(c.contact)}
                                         </div>
                                         <div
                                             style={{
@@ -539,11 +619,13 @@ export default function Customers() {
                                                 color: "var(--text-3)",
                                             }}
                                         >
-                                            {c.email}
+                                            {displayValue(c.email)}
                                         </div>
                                     </td>
                                     <td style={{ color: "var(--text-2)" }}>
-                                        {c.country}
+                                        {c.cityTown
+                                            ? `${c.cityTown}, ${displayValue(c.country)}`
+                                            : displayValue(c.country)}
                                     </td>
                                     <td>
                                         <span
@@ -694,19 +776,39 @@ export default function Customers() {
                             </div>
                             <div className="dp-row">
                                 <span className="dp-key">Contact</span>
-                                <span className="dp-val">{detail.contact}</span>
+                                <span className="dp-val">
+                                    {displayValue(detail.contact)}
+                                </span>
                             </div>
                             <div className="dp-row">
                                 <span className="dp-key">Email</span>
-                                <span className="dp-val">{detail.email}</span>
+                                <span className="dp-val">
+                                    {displayValue(detail.email)}
+                                </span>
                             </div>
                             <div className="dp-row">
                                 <span className="dp-key">Phone</span>
-                                <span className="dp-val">{detail.phone}</span>
+                                <span className="dp-val">
+                                    {displayValue(detail.phone)}
+                                </span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">Street Address</span>
+                                <span className="dp-val">
+                                    {displayValue(detail.streetAddress)}
+                                </span>
+                            </div>
+                            <div className="dp-row">
+                                <span className="dp-key">City / Town</span>
+                                <span className="dp-val">
+                                    {displayValue(detail.cityTown)}
+                                </span>
                             </div>
                             <div className="dp-row">
                                 <span className="dp-key">Country</span>
-                                <span className="dp-val">{detail.country}</span>
+                                <span className="dp-val">
+                                    {displayValue(detail.country)}
+                                </span>
                             </div>
                         </div>
                         <div className="dp-section">
@@ -933,9 +1035,7 @@ export default function Customers() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">
-                                        Email *
-                                    </label>
+                                    <label className="form-label">Email</label>
                                     <input
                                         className="form-input"
                                         type="email"
@@ -967,55 +1067,63 @@ export default function Customers() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">
-                                        Country
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        placeholder="e.g. Kenya"
-                                        value={form.country}
-                                        onChange={(e) =>
+                                    <label className="form-label">Country</label>
+                                    <SearchableSelect
+                                        options={countryOptions}
+                                        value={form.countryCode}
+                                        placeholder="Select country..."
+                                        searchPlaceholder="Search country..."
+                                        onChange={(countryCode, countryName) =>
                                             setForm((f) => ({
                                                 ...f,
-                                                country: e.target.value,
+                                                country: countryName,
+                                                countryCode,
+                                                cityTown: "",
                                             }))
                                         }
                                     />
                                 </div>
                             </div>
 
-                            <div className="form-divider">Performance</div>
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">
-                                        Shipments
+                                        City / Town
                                     </label>
-                                    <input
-                                        className="form-input"
-                                        type="number"
-                                        min={0}
-                                        value={form.shipments}
-                                        onChange={(e) =>
+                                    <SearchableSelect
+                                        options={cityOptions.map((city) => ({
+                                            label: city,
+                                            value: city,
+                                        }))}
+                                        value={form.cityTown}
+                                        placeholder="Select or type city..."
+                                        searchPlaceholder="Search or type city..."
+                                        onChange={(_, cityName) =>
                                             setForm((f) => ({
                                                 ...f,
-                                                shipments: e.target.value,
+                                                cityTown: cityName,
+                                            }))
+                                        }
+                                        onFreeType={(cityTown) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                cityTown,
                                             }))
                                         }
                                     />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">
-                                        Revenue ({activeCurrency})
+                                        Street Address
                                     </label>
                                     <input
                                         className="form-input"
-                                        type="number"
-                                        min={0}
-                                        value={form.revenue}
+                                        placeholder="Street / area"
+                                        value={form.streetAddress}
                                         onChange={(e) =>
                                             setForm((f) => ({
                                                 ...f,
-                                                revenue: e.target.value,
+                                                streetAddress: e.target.value,
                                             }))
                                         }
                                     />

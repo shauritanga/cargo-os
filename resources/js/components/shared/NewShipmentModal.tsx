@@ -1,26 +1,29 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { useApp } from "../../context/AppContext";
 import SearchableSelect from "./SearchableSelect";
 import AirwaybillPrint from "./AirwaybillPrint";
-import type { Shipment, Party } from "../../types";
-import { updateShipmentApi } from "../../lib/api";
+import type {
+    Shipment,
+    Party,
+    Customer,
+    ShipmentDraft,
+    ShipmentDraftSourceMode,
+} from "../../types";
+import {
+    fetchCitiesApi,
+    fetchCountriesApi,
+    fetchCustomers,
+    updateShipmentApi,
+} from "../../lib/api";
 
 interface Props {
     onClose: () => void;
     modalMode?: "create" | "edit";
     initialShipment?: Shipment;
     onSaved?: (shipment: Shipment) => void;
-}
-
-async function fetchCountries() {
-    const res = await fetch("/api/countries");
-    return res.json() as Promise<{ id: number; name: string; code: string }[]>;
-}
-
-async function fetchCities(code: string): Promise<string[]> {
-    if (!code) return [];
-    const res = await fetch(`/api/countries/${code}/cities`);
-    return res.json();
+    initialDraft?: ShipmentDraft;
+    onDraftChange?: (draft: ShipmentDraft) => void;
+    onResetDraft?: () => void;
 }
 
 const emptyParty = (): Party => ({
@@ -33,30 +36,122 @@ const emptyParty = (): Party => ({
     contactName: "",
 });
 
+const createEmptyShipmentDraft = (): ShipmentDraft => ({
+    formType: "international",
+    mode: "Road",
+    eta: "",
+    weight: "",
+    pieces: "",
+    contents: "",
+    cargoType: "General",
+    declaredValue: "",
+    insurance: "",
+    notes: "",
+    consignorSource: "new",
+    consigneeSource: "new",
+    selectedConsignorCustomerId: "",
+    selectedConsigneeCustomerId: "",
+    consignor: emptyParty(),
+    consignee: emptyParty(),
+    consignorManual: emptyParty(),
+    consigneeManual: emptyParty(),
+});
+
+function PartySourceSelector({
+    mode,
+    onChange,
+}: {
+    mode: ShipmentDraftSourceMode;
+    onChange: (mode: ShipmentDraftSourceMode) => void;
+}) {
+    const options: { value: ShipmentDraftSourceMode; label: string }[] = [
+        { value: "existing", label: "Existing Customer" },
+        { value: "new", label: "New Customer" },
+    ];
+
+    return (
+        <div
+            className="form-row"
+            style={{ gridTemplateColumns: "1fr 1fr", gap: 12 }}
+        >
+            {options.map((option) => {
+                const checked = mode === option.value;
+
+                return (
+                    <label
+                        key={option.value}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "12px 14px",
+                            borderRadius: 10,
+                            border: `1px solid ${checked ? "var(--blue)" : "var(--border-strong)"}`,
+                            background: checked
+                                ? "var(--blue-dim)"
+                                : "var(--bg-3)",
+                            cursor: "pointer",
+                            userSelect: "none",
+                        }}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => onChange(option.value)}
+                            style={{
+                                width: 16,
+                                height: 16,
+                                accentColor: "var(--blue)",
+                                cursor: "pointer",
+                                flexShrink: 0,
+                            }}
+                        />
+                        <span
+                            style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: checked
+                                    ? "var(--blue)"
+                                    : "var(--text-1)",
+                            }}
+                        >
+                            {option.label}
+                        </span>
+                    </label>
+                );
+            })}
+        </div>
+    );
+}
+
 function PartyFields({
     title,
     value,
     onChange,
     countryOptions,
+    showDivider = true,
 }: {
     title: string;
     value: Party;
     onChange: (p: Party) => void;
     countryOptions: { label: string; value: string }[];
+    showDivider?: boolean;
 }) {
     const [cities, setCities] = useState<string[]>([]);
 
     useEffect(() => {
-        fetchCities(value.country).then(setCities);
+        fetchCitiesApi(value.country)
+            .then(setCities)
+            .catch(() => setCities([]));
     }, [value.country]);
 
     const f =
-        (field: keyof Party) => (e: React.ChangeEvent<HTMLInputElement>) =>
+        (field: keyof Party) => (e: ChangeEvent<HTMLInputElement>) =>
             onChange({ ...value, [field]: e.target.value });
 
     return (
         <>
-            <div className="form-divider">{title}</div>
+            {showDivider && <div className="form-divider">{title}</div>}
             {/* Row 1: Country | City/Town — searchable selects */}
             <div className="form-row">
                 <div className="form-group">
@@ -149,89 +244,148 @@ export default function NewShipmentModal({
     modalMode = "create",
     initialShipment,
     onSaved,
+    initialDraft,
+    onDraftChange,
+    onResetDraft,
 }: Props) {
     const { setShipments, showToast, setActivePage, companySettings } =
         useApp();
     const isEdit = modalMode === "edit" && Boolean(initialShipment);
+    const createDraft = useMemo(
+        () => initialDraft ?? createEmptyShipmentDraft(),
+        [initialDraft],
+    );
+    const initialConsignor = useMemo(
+        () =>
+            isEdit
+                ? (initialShipment?.consignor ?? {
+                      ...emptyParty(),
+                      companyName: initialShipment?.customer ?? "",
+                      cityTown: initialShipment?.origin ?? "",
+                      country: initialShipment?.originCountry ?? "",
+                      tel:
+                          initialShipment?.phone &&
+                          initialShipment.phone !== "—"
+                              ? initialShipment.phone
+                              : "",
+                      email:
+                          initialShipment?.email &&
+                          initialShipment.email !== "—"
+                              ? initialShipment.email
+                              : "",
+                      contactName:
+                          initialShipment?.contact &&
+                          initialShipment.contact !== "—"
+                              ? initialShipment.contact
+                              : "",
+                  })
+                : createDraft.consignor,
+        [createDraft.consignor, initialShipment, isEdit],
+    );
+    const initialConsignee = useMemo(
+        () =>
+            isEdit
+                ? (initialShipment?.consignee ?? {
+                      ...emptyParty(),
+                      cityTown: initialShipment?.dest ?? "",
+                      country: initialShipment?.destCountry ?? "",
+                  })
+                : createDraft.consignee,
+        [createDraft.consignee, initialShipment, isEdit],
+    );
+
     const [formType, setFormType] = useState<"international" | "domestic">(
-        initialShipment?.type ?? "international",
+        isEdit ? (initialShipment?.type ?? "international") : createDraft.formType,
     );
 
     const [countryOptions, setCountryOptions] = useState<
         { label: string; value: string; code: string }[]
     >([]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
 
     useEffect(() => {
-        fetchCountries().then((data) =>
-            setCountryOptions(
-                data.map((c) => ({
-                    label: c.name,
-                    value: c.code,
-                    code: c.code,
-                })),
-            ),
-        );
+        Promise.all([fetchCountriesApi(), fetchCustomers()])
+            .then(([countries, customerData]) => {
+                setCountryOptions(
+                    countries.map((country) => ({
+                        label: country.name,
+                        value: country.code,
+                        code: country.code,
+                    })),
+                );
+                setCustomers(customerData);
+            })
+            .catch(() => {
+                setCountryOptions([]);
+                setCustomers([]);
+            });
     }, []);
 
     // Cargo
     const [mode, setMode] = useState<Shipment["mode"]>(
-        initialShipment?.mode ?? "Road",
+        isEdit ? (initialShipment?.mode ?? "Road") : createDraft.mode,
     );
     const [eta, setEta] = useState(
-        initialShipment?.eta
-            ? initialShipment.eta.toISOString().slice(0, 10)
-            : "",
+        isEdit
+            ? (initialShipment?.eta
+                  ? initialShipment.eta.toISOString().slice(0, 10)
+                  : "")
+            : createDraft.eta,
     );
-    const [weight, setWeight] = useState(String(initialShipment?.weight ?? ""));
-    const [pieces, setPieces] = useState(String(initialShipment?.pieces ?? ""));
+    const [weight, setWeight] = useState(
+        isEdit ? String(initialShipment?.weight ?? "") : createDraft.weight,
+    );
+    const [pieces, setPieces] = useState(
+        isEdit ? String(initialShipment?.pieces ?? "") : createDraft.pieces,
+    );
     const [contents, setContents] = useState(
-        initialShipment?.contents && initialShipment.contents !== "—"
-            ? initialShipment.contents
-            : "",
+        isEdit
+            ? initialShipment?.contents && initialShipment.contents !== "—"
+                ? initialShipment.contents
+                : ""
+            : createDraft.contents,
     );
     const [cargoType, setCargoType] = useState<Shipment["cargoType"]>(
-        initialShipment?.cargoType ?? "General",
+        isEdit ? (initialShipment?.cargoType ?? "General") : createDraft.cargoType,
     );
     const [declaredValue, setDeclaredValue] = useState(
-        initialShipment?.declaredValue && initialShipment.declaredValue !== "—"
-            ? initialShipment.declaredValue
-            : "",
+        isEdit
+            ? initialShipment?.declaredValue &&
+              initialShipment.declaredValue !== "—"
+                ? initialShipment.declaredValue
+                : ""
+            : createDraft.declaredValue,
     );
     const [insurance, setInsurance] = useState(
-        initialShipment?.insurance && initialShipment.insurance !== "—"
-            ? initialShipment.insurance
-            : "",
+        isEdit
+            ? initialShipment?.insurance && initialShipment.insurance !== "—"
+                ? initialShipment.insurance
+                : ""
+            : createDraft.insurance,
     );
-    const [notes, setNotes] = useState(initialShipment?.notes ?? "");
+    const [notes, setNotes] = useState(
+        isEdit ? (initialShipment?.notes ?? "") : createDraft.notes,
+    );
 
     // Consignor & Consignee
-    const [consignor, setConsignor] = useState<Party>(
-        initialShipment?.consignor ?? {
-            ...emptyParty(),
-            companyName: initialShipment?.customer ?? "",
-            cityTown: initialShipment?.origin ?? "",
-            country: initialShipment?.originCountry ?? "",
-            tel:
-                initialShipment?.phone && initialShipment.phone !== "—"
-                    ? initialShipment.phone
-                    : "",
-            email:
-                initialShipment?.email && initialShipment.email !== "—"
-                    ? initialShipment.email
-                    : "",
-            contactName:
-                initialShipment?.contact && initialShipment.contact !== "—"
-                    ? initialShipment.contact
-                    : "",
-        },
-    );
-    const [consignee, setConsignee] = useState<Party>(
-        initialShipment?.consignee ?? {
-            ...emptyParty(),
-            cityTown: initialShipment?.dest ?? "",
-            country: initialShipment?.destCountry ?? "",
-        },
-    );
+    const [consignorSource, setConsignorSource] =
+        useState<ShipmentDraftSourceMode>(
+            isEdit ? "new" : createDraft.consignorSource,
+        );
+    const [consigneeSource, setConsigneeSource] =
+        useState<ShipmentDraftSourceMode>(
+            isEdit ? "new" : createDraft.consigneeSource,
+        );
+    const [selectedConsignorCustomerId, setSelectedConsignorCustomerId] =
+        useState(isEdit ? "" : createDraft.selectedConsignorCustomerId);
+    const [selectedConsigneeCustomerId, setSelectedConsigneeCustomerId] =
+        useState(isEdit ? "" : createDraft.selectedConsigneeCustomerId);
+    const [consignorManual, setConsignorManual] =
+        useState<Party>(isEdit ? initialConsignor : createDraft.consignorManual);
+    const [consigneeManual, setConsigneeManual] =
+        useState<Party>(isEdit ? initialConsignee : createDraft.consigneeManual);
+    const [consignor, setConsignor] = useState<Party>(initialConsignor);
+    const [consignee, setConsignee] = useState<Party>(initialConsignee);
 
     const [submitting, setSubmitting] = useState(false);
     const [successShipment, setSuccessShipment] = useState<Shipment | null>(
@@ -239,6 +393,94 @@ export default function NewShipmentModal({
     );
     const [copied, setCopied] = useState(false);
     const [showPrint, setShowPrint] = useState(false);
+
+    const activeCustomers = customers.filter(
+        (customer) => customer.status === "active",
+    );
+    const activeCustomerOptions = activeCustomers.map((customer) => ({
+        label: [customer.name, customer.cityTown, customer.country]
+            .filter(Boolean)
+            .join(" · "),
+        value: customer.id,
+        code: [customer.phone, customer.email].filter(Boolean).join(" "),
+    }));
+
+    const resolveCustomerCountryCode = (customer: Customer): string => {
+        if (customer.countryCode) {
+            return customer.countryCode;
+        }
+
+        const matchedCountry = countryOptions.find(
+            (option) =>
+                option.label.toLowerCase() === customer.country.toLowerCase(),
+        );
+
+        return matchedCountry?.value ?? "";
+    };
+
+    const customerToParty = (customer: Customer): Party => ({
+        companyName: customer.name,
+        streetAddress: customer.streetAddress,
+        cityTown: customer.cityTown,
+        country: resolveCustomerCountryCode(customer),
+        tel: customer.phone,
+        email: customer.email,
+        contactName: customer.contact,
+    });
+
+    const handleConsignorChange = (party: Party) => {
+        setConsignor(party);
+        if (consignorSource === "new") {
+            setConsignorManual(party);
+        }
+    };
+
+    const handleConsigneeChange = (party: Party) => {
+        setConsignee(party);
+        if (consigneeSource === "new") {
+            setConsigneeManual(party);
+        }
+    };
+
+    const handleConsignorSourceChange = (
+        source: ShipmentDraftSourceMode,
+    ) => {
+        if (source === consignorSource) return;
+
+        if (source === "existing") {
+            setConsignorManual(consignor);
+            const selectedCustomer = activeCustomers.find(
+                (customer) => customer.id === selectedConsignorCustomerId,
+            );
+            if (selectedCustomer) {
+                setConsignor(customerToParty(selectedCustomer));
+            }
+        } else {
+            setConsignor(consignorManual);
+        }
+
+        setConsignorSource(source);
+    };
+
+    const handleConsigneeSourceChange = (
+        source: ShipmentDraftSourceMode,
+    ) => {
+        if (source === consigneeSource) return;
+
+        if (source === "existing") {
+            setConsigneeManual(consignee);
+            const selectedCustomer = activeCustomers.find(
+                (customer) => customer.id === selectedConsigneeCustomerId,
+            );
+            if (selectedCustomer) {
+                setConsignee(customerToParty(selectedCustomer));
+            }
+        } else {
+            setConsignee(consigneeManual);
+        }
+
+        setConsigneeSource(source);
+    };
 
     function copyAwb(awb: string) {
         navigator.clipboard.writeText(awb).then(() => {
@@ -248,7 +490,7 @@ export default function NewShipmentModal({
     }
 
     useEffect(() => {
-        if (!initialShipment) return;
+        if (!isEdit || !initialShipment) return;
 
         setFormType(initialShipment.type);
         setMode(initialShipment.mode);
@@ -273,34 +515,64 @@ export default function NewShipmentModal({
                 : "",
         );
         setNotes(initialShipment.notes ?? "");
-        setConsignor(
-            initialShipment.consignor ?? {
-                ...emptyParty(),
-                companyName: initialShipment.customer,
-                cityTown: initialShipment.origin,
-                country: initialShipment.originCountry,
-                tel:
-                    initialShipment.phone && initialShipment.phone !== "—"
-                        ? initialShipment.phone
-                        : "",
-                email:
-                    initialShipment.email && initialShipment.email !== "—"
-                        ? initialShipment.email
-                        : "",
-                contactName:
-                    initialShipment.contact && initialShipment.contact !== "—"
-                        ? initialShipment.contact
-                        : "",
-            },
-        );
-        setConsignee(
-            initialShipment.consignee ?? {
-                ...emptyParty(),
-                cityTown: initialShipment.dest,
-                country: initialShipment.destCountry,
-            },
-        );
-    }, [initialShipment]);
+        setConsignor(initialConsignor);
+        setConsignee(initialConsignee);
+        setConsignorManual(initialConsignor);
+        setConsigneeManual(initialConsignee);
+        setConsignorSource("new");
+        setConsigneeSource("new");
+        setSelectedConsignorCustomerId("");
+        setSelectedConsigneeCustomerId("");
+    }, [initialConsignee, initialConsignor, initialShipment, isEdit]);
+
+    useEffect(() => {
+        if (isEdit || !onDraftChange || successShipment) {
+            return;
+        }
+
+        onDraftChange({
+            formType,
+            mode,
+            eta,
+            weight,
+            pieces,
+            contents,
+            cargoType,
+            declaredValue,
+            insurance,
+            notes,
+            consignorSource,
+            consigneeSource,
+            selectedConsignorCustomerId,
+            selectedConsigneeCustomerId,
+            consignor,
+            consignee,
+            consignorManual,
+            consigneeManual,
+        });
+    }, [
+        cargoType,
+        consignee,
+        consigneeManual,
+        consigneeSource,
+        consignor,
+        consignorManual,
+        consignorSource,
+        contents,
+        declaredValue,
+        eta,
+        formType,
+        insurance,
+        isEdit,
+        mode,
+        notes,
+        onDraftChange,
+        pieces,
+        selectedConsigneeCustomerId,
+        selectedConsignorCustomerId,
+        successShipment,
+        weight,
+    ]);
 
     const handleSubmit = async () => {
         const origin = consignor.cityTown.trim();
@@ -400,6 +672,7 @@ export default function NewShipmentModal({
 
             setShipments((prev) => [newShipment, ...prev]);
             setActivePage("shipments");
+            onResetDraft?.();
             setSuccessShipment(newShipment);
         } catch (err: any) {
             showToast(err.message || "Error creating shipment", "red");
@@ -635,7 +908,9 @@ export default function NewShipmentModal({
                             <select
                                 className="form-select"
                                 value={mode}
-                                onChange={(e) => setMode(e.target.value)}
+                                onChange={(e) =>
+                                    setMode(e.target.value as Shipment["mode"])
+                                }
                             >
                                 <option>Road</option>
                                 <option>Air</option>
@@ -684,7 +959,11 @@ export default function NewShipmentModal({
                             <select
                                 className="form-select"
                                 value={cargoType}
-                                onChange={(e) => setCargoType(e.target.value)}
+                                onChange={(e) =>
+                                    setCargoType(
+                                        e.target.value as Shipment["cargoType"],
+                                    )
+                                }
                             >
                                 {[
                                     "General",
@@ -741,20 +1020,100 @@ export default function NewShipmentModal({
                         </div>
                     </div>
 
-                    {/* CONSIGNOR */}
+                    <div className="form-divider">Consignor (Sender)</div>
+                    <PartySourceSelector
+                        mode={consignorSource}
+                        onChange={handleConsignorSourceChange}
+                    />
+                    {consignorSource === "existing" && (
+                        <div
+                            className="form-row"
+                            style={{ gridTemplateColumns: "1fr" }}
+                        >
+                            <div className="form-group">
+                                <label className="form-label">
+                                    Select registered sender
+                                </label>
+                                <SearchableSelect
+                                    options={activeCustomerOptions}
+                                    value={selectedConsignorCustomerId}
+                                    placeholder="Search active customers..."
+                                    searchPlaceholder="Search name, city, country..."
+                                    onChange={(customerId) => {
+                                        const selectedCustomer =
+                                            activeCustomers.find(
+                                                (customer) =>
+                                                    customer.id === customerId,
+                                            );
+                                        setSelectedConsignorCustomerId(
+                                            customerId,
+                                        );
+                                        if (selectedCustomer) {
+                                            setConsignor(
+                                                customerToParty(
+                                                    selectedCustomer,
+                                                ),
+                                            );
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
                     <PartyFields
-                        title="Consignor (Sender)"
+                        title="Consignor Details"
                         value={consignor}
-                        onChange={setConsignor}
+                        onChange={handleConsignorChange}
                         countryOptions={countryOptions}
+                        showDivider={false}
                     />
 
-                    {/* CONSIGNEE */}
+                    <div className="form-divider">Consignee (Recipient)</div>
+                    <PartySourceSelector
+                        mode={consigneeSource}
+                        onChange={handleConsigneeSourceChange}
+                    />
+                    {consigneeSource === "existing" && (
+                        <div
+                            className="form-row"
+                            style={{ gridTemplateColumns: "1fr" }}
+                        >
+                            <div className="form-group">
+                                <label className="form-label">
+                                    Select registered receiver
+                                </label>
+                                <SearchableSelect
+                                    options={activeCustomerOptions}
+                                    value={selectedConsigneeCustomerId}
+                                    placeholder="Search active customers..."
+                                    searchPlaceholder="Search name, city, country..."
+                                    onChange={(customerId) => {
+                                        const selectedCustomer =
+                                            activeCustomers.find(
+                                                (customer) =>
+                                                    customer.id === customerId,
+                                            );
+                                        setSelectedConsigneeCustomerId(
+                                            customerId,
+                                        );
+                                        if (selectedCustomer) {
+                                            setConsignee(
+                                                customerToParty(
+                                                    selectedCustomer,
+                                                ),
+                                            );
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
                     <PartyFields
-                        title="Consignee (Recipient)"
+                        title="Consignee Details"
                         value={consignee}
-                        onChange={setConsignee}
+                        onChange={handleConsigneeChange}
                         countryOptions={countryOptions}
+                        showDivider={false}
                     />
 
                     {/* NOTES */}

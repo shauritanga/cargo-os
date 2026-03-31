@@ -30,7 +30,9 @@ class CustomerController extends Controller
                     ->orWhere('contact', 'like', "%{$q}%")
                     ->orWhere('email', 'like', "%{$q}%")
                     ->orWhere('phone', 'like', "%{$q}%")
-                    ->orWhere('country', 'like', "%{$q}%");
+                    ->orWhere('country', 'like', "%{$q}%")
+                    ->orWhere('city_town', 'like', "%{$q}%")
+                    ->orWhere('street_address', 'like', "%{$q}%");
             });
         }
 
@@ -42,9 +44,12 @@ class CustomerController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'contact' => 'nullable|string|max:255',
-            'email' => 'required|email|max:255|unique:customers,email',
+            'email' => 'nullable|email|max:255|unique:customers,email',
             'phone' => 'nullable|string|max:50',
             'country' => 'nullable|string|max:100',
+            'country_code' => 'nullable|string|max:10',
+            'city_town' => 'nullable|string|max:255',
+            'street_address' => 'nullable|string|max:255',
             'type' => 'nullable|in:Enterprise,SME,Individual',
             'status' => 'nullable|in:active,inactive',
             'shipments' => 'nullable|integer|min:0',
@@ -55,8 +60,12 @@ class CustomerController extends Controller
 
         $customer = Customer::create(array_merge([
             'contact' => null,
+            'email' => null,
             'phone' => null,
             'country' => 'Tanzania',
+            'country_code' => 'TZ',
+            'city_town' => null,
+            'street_address' => null,
             'type' => 'SME',
             'status' => 'active',
             'shipments' => 0,
@@ -78,9 +87,12 @@ class CustomerController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'contact' => 'sometimes|nullable|string|max:255',
-            'email' => 'sometimes|required|email|max:255|unique:customers,email,' . $customer->id,
+            'email' => 'sometimes|nullable|email|max:255|unique:customers,email,' . $customer->id,
             'phone' => 'sometimes|nullable|string|max:50',
             'country' => 'sometimes|nullable|string|max:100',
+            'country_code' => 'sometimes|nullable|string|max:10',
+            'city_town' => 'sometimes|nullable|string|max:255',
+            'street_address' => 'sometimes|nullable|string|max:255',
             'type' => 'sometimes|required|in:Enterprise,SME,Individual',
             'status' => 'sometimes|required|in:active,inactive',
             'shipments' => 'sometimes|nullable|integer|min:0',

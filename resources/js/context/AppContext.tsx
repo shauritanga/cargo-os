@@ -47,6 +47,7 @@ interface AppState {
     activePage: PageId;
     globalSearch: string;
     sidebarCollapsed: boolean;
+    isMobile: boolean;
     shipments: Shipment[];
     shipmentsLoading: boolean;
     shipmentsError: string | null;
@@ -95,6 +96,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [activePage, setActivePage] = useState<PageId>("shipments");
     const [globalSearch, setGlobalSearch] = useState("");
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const [shipments, setShipments] = useState<Shipment[]>([]);
     const [shipmentsLoading, setShipmentsLoading] = useState(true);
     const [shipmentsError, setShipmentsError] = useState<string | null>(null);
@@ -211,6 +213,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, [refreshCurrentUser]);
 
     useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        const media = window.matchMedia("(max-width: 900px)");
+
+        const applyMobileState = (matches: boolean) => {
+            setIsMobile(matches);
+            setSidebarCollapsed(matches);
+        };
+
+        applyMobileState(media.matches);
+
+        const handleChange = (event: MediaQueryListEvent) => {
+            applyMobileState(event.matches);
+        };
+
+        if (typeof media.addEventListener === "function") {
+            media.addEventListener("change", handleChange);
+            return () => media.removeEventListener("change", handleChange);
+        }
+
+        media.addListener(handleChange);
+        return () => media.removeListener(handleChange);
+    }, []);
+
+    useEffect(() => {
         if (currentUser !== null) {
             reloadShipments();
             reloadBookings();
@@ -302,6 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 activePage,
                 globalSearch,
                 sidebarCollapsed,
+                isMobile,
                 shipments,
                 shipmentsLoading,
                 shipmentsError,
