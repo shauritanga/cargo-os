@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Shipment;
 use Illuminate\Http\JsonResponse;
@@ -57,8 +58,13 @@ class CustomerController extends Controller
             'since' => 'nullable|date',
             'notes' => 'nullable|string|max:3000',
         ]);
+        $user = $request->user();
+        $branchId = $user?->isAdmin()
+            ? Branch::resolveDefaultId()
+            : (int) ($user?->branch_id ?? Branch::resolveDefaultId());
 
         $customer = Customer::create(array_merge([
+            'branch_id' => $branchId,
             'contact' => null,
             'email' => null,
             'phone' => null,

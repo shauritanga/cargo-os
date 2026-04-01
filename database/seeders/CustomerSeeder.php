@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Customer;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +10,8 @@ class CustomerSeeder extends Seeder
 {
     public function run(): void
     {
+        $branchId = Branch::resolveDefaultId();
+
         if (Customer::query()->exists()) {
             return;
         }
@@ -26,6 +29,7 @@ class CustomerSeeder extends Seeder
                 'revenue' => 142500,
                 'since' => '2021-03-15',
                 'notes' => 'Strategic enterprise account.',
+                'branch_id' => $branchId,
             ],
             [
                 'name' => 'DHL Express',
@@ -39,6 +43,7 @@ class CustomerSeeder extends Seeder
                 'revenue' => 389200,
                 'since' => '2020-07-01',
                 'notes' => null,
+                'branch_id' => $branchId,
             ],
             [
                 'name' => 'Jumia Kenya',
@@ -52,6 +57,7 @@ class CustomerSeeder extends Seeder
                 'revenue' => 19800,
                 'since' => '2023-05-22',
                 'notes' => 'Paused account pending renewal.',
+                'branch_id' => $branchId,
             ],
             [
                 'name' => 'Ali Logistics',
@@ -65,6 +71,7 @@ class CustomerSeeder extends Seeder
                 'revenue' => 12450,
                 'since' => '2024-01-12',
                 'notes' => null,
+                'branch_id' => $branchId,
             ],
         ];
 

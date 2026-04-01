@@ -461,6 +461,25 @@ export default function Sidebar() {
 
                 {hasRole("admin") && (
                     <NavItem
+                        pageId="branches"
+                        label="Branches"
+                        icon={
+                            <svg
+                                viewBox="0 0 18 18"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                            >
+                                <path d="M7 4a2 2 0 11-4 0 2 2 0 014 0zM15 9a2 2 0 11-4 0 2 2 0 014 0zM7 14a2 2 0 11-4 0 2 2 0 014 0z" />
+                                <path d="M5 6v6M7 4h4a2 2 0 012 2v1M7 14h4a2 2 0 002-2v-1" />
+                            </svg>
+                        }
+                    />
+                )}
+
+                {hasRole("admin") && (
+                    <NavItem
                         pageId="audit-logs"
                         label="Audit Logs"
                         icon={

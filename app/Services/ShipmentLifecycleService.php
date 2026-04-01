@@ -102,6 +102,7 @@ class ShipmentLifecycleService
             $shipment->update(['status' => $targetStatus]);
 
             $event = ShipmentStatusEvent::create([
+                'branch_id' => $shipment->branch_id,
                 'shipment_id' => $shipment->id,
                 'previous_status' => $currentStatus,
                 'new_status' => $targetStatus,
@@ -125,6 +126,7 @@ class ShipmentLifecycleService
         array $metadata = [],
     ): ShipmentStatusEvent {
         return ShipmentStatusEvent::create([
+            'branch_id' => $shipment->branch_id,
             'shipment_id' => $shipment->id,
             'previous_status' => null,
             'new_status' => (string) $shipment->status,

@@ -13,6 +13,7 @@ import Reports from "../../pages/Reports";
 import Settings from "../../pages/Settings";
 import AccessControl from "../../pages/AccessControl";
 import AuditLogs from "../../pages/AuditLogs";
+import Branches from "../../pages/Branches";
 import Placeholder from "../../pages/Placeholder";
 import Tracking from "../../pages/Tracking";
 import NewShipmentModal from "../shared/NewShipmentModal";
@@ -103,6 +104,11 @@ export default function Shell() {
                     className={`page${activePage === "access-control" ? " active" : ""}`}
                 >
                     <AccessControl />
+                </div>
+                <div
+                    className={`page${activePage === "branches" ? " active" : ""}`}
+                >
+                    <Branches />
                 </div>
                 <div
                     className={`page${activePage === "audit-logs" ? " active" : ""}`}

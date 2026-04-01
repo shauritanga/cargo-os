@@ -114,7 +114,7 @@ class AuthController extends Controller
 
     private function userPayload($user): array
     {
-        $user->load(['roles.permissions', 'directPermissions']);
+        $user->load(['roles.permissions', 'directPermissions', 'branch']);
 
         $effectivePermissions = $user
             ->permissions()
@@ -127,6 +127,12 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'is_active' => $user->is_active,
+            'branch' => $user->branch ? [
+                'id' => $user->branch->id,
+                'name' => $user->branch->name,
+                'code' => $user->branch->code,
+                'is_active' => $user->branch->is_active,
+            ] : null,
             'roles' => $user->roles->map(fn($role) => [
                 'id' => $role->id,
                 'name' => $role->name,

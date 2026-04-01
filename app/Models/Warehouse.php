@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 
 class Warehouse extends Model
 {
+    use BelongsToBranch;
+
     protected $fillable = [
+        'branch_id',
         'name',
         'city',
         'country',

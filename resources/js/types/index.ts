@@ -244,6 +244,7 @@ export interface AuthUser {
     name: string;
     email: string;
     isActive: boolean;
+    branch?: Branch | null;
     roles: Role[];
     directPermissions: Permission[];
     effectivePermissions: string[];
@@ -254,9 +255,19 @@ export interface ManagedUser {
     name: string;
     email: string;
     isActive: boolean;
+    branch?: Branch | null;
     roles: Role[];
     directPermissions: Permission[];
     effectivePermissions: string[];
+}
+
+export interface Branch {
+    id: string;
+    name: string;
+    code: string;
+    isActive: boolean;
+    createdAt: string | null;
+    updatedAt: string | null;
 }
 
 export interface AuditLogUser {
@@ -299,6 +310,7 @@ export type PageId =
     | "reports"
     | "settings"
     | "access-control"
+    | "branches"
     | "audit-logs"
     | "placeholder";
 

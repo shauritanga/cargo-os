@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
@@ -41,6 +42,84 @@ class RbacAuthorizationTest extends TestCase
         $this->getJson('/api/users')
             ->assertOk()
             ->assertJsonStructure(['data']);
+    }
+
+    public function test_assign_branch_rejects_inactive_branch(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $activeBranch = Branch::query()->create([
+            'name' => 'Active Branch',
+            'code' => 'ACT',
+            'is_active' => true,
+        ]);
+        $inactiveBranch = Branch::query()->create([
+            'name' => 'Inactive Branch',
+            'code' => 'INA',
+            'is_active' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_active' => true,
+            'branch_id' => $activeBranch->id,
+        ]);
+        $targetUser = User::factory()->create([
+            'is_active' => true,
+            'branch_id' => $activeBranch->id,
+        ]);
+        $adminRole = Role::query()->where('name', 'admin')->firstOrFail();
+        $admin->roles()->sync([$adminRole->id]);
+        $this->actingAs($admin, 'web');
+
+        $this->patchJson("/api/users/{$targetUser->id}/branch", [
+            'branch_id' => $inactiveBranch->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['branch_id']);
+    }
+
+    public function test_admin_can_filter_users_by_branch(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+
+        $branchA = Branch::query()->create([
+            'name' => 'Branch A',
+            'code' => 'BRA',
+            'is_active' => true,
+        ]);
+        $branchB = Branch::query()->create([
+            'name' => 'Branch B',
+            'code' => 'BRB',
+            'is_active' => true,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_active' => true,
+            'branch_id' => $branchA->id,
+        ]);
+        $adminRole = Role::query()->where('name', 'admin')->firstOrFail();
+        $admin->roles()->sync([$adminRole->id]);
+
+        $userA = User::factory()->create([
+            'name' => 'User A',
+            'email' => 'usera@example.com',
+            'is_active' => true,
+            'branch_id' => $branchA->id,
+        ]);
+        User::factory()->create([
+            'name' => 'User B',
+            'email' => 'userb@example.com',
+            'is_active' => true,
+            'branch_id' => $branchB->id,
+        ]);
+
+        $this->actingAs($admin, 'web');
+
+        $response = $this->getJson("/api/users?branch_id={$branchA->id}")->assertOk();
+        $emails = collect($response->json('data'))->pluck('email')->all();
+
+        $this->assertContains($userA->email, $emails);
+        $this->assertNotContains('userb@example.com', $emails);
     }
 
     public function test_permission_middleware_blocks_users_without_required_permission(): void

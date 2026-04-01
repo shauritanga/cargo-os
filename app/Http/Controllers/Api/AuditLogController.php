@@ -25,6 +25,11 @@ class AuditLogController extends Controller
             $query->where('status_code', (int) $request->query('status_code'));
         }
 
+        if ($request->filled('branch_id')) {
+            $query->withoutGlobalScope('branch')
+                ->where('branch_id', (int) $request->query('branch_id'));
+        }
+
         if ($request->filled('q')) {
             $search = (string) $request->query('q');
             $query->where(function ($builder) use ($search) {
@@ -61,6 +66,7 @@ class AuditLogController extends Controller
             'request_data' => $log->request_data,
             'metadata' => $log->metadata,
             'created_at' => $log->created_at?->toIso8601String(),
+            'branch_id' => $log->branch_id,
             'user' => $log->user ? [
                 'id' => $log->user->id,
                 'name' => $log->user->name,

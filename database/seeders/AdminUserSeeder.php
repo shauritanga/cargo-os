@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -12,6 +13,8 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
+        $branchId = Branch::resolveDefaultId();
+
         $adminEmail = (string) env('ADMIN_BOOTSTRAP_EMAIL', 'admin@rtexpress.co.tz');
         $adminPassword = (string) env('ADMIN_BOOTSTRAP_PASSWORD', '');
 
@@ -39,10 +42,12 @@ class AdminUserSeeder extends Seeder
                 'email' => $adminEmail,
                 'password' => Hash::make($adminPassword),
                 'is_active' => true,
+                'branch_id' => $branchId,
             ]);
         } else {
             $user->name = 'Administrator';
             $user->is_active = true;
+            $user->branch_id = $branchId;
 
             if ($adminPassword !== '') {
                 $user->password = Hash::make($adminPassword);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Invoice;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -44,8 +45,13 @@ class BillingController extends Controller
             'items.*.rate' => 'required|numeric|min:0',
             'notes' => 'nullable|string|max:5000',
         ]);
+        $user = $request->user();
+        $branchId = $user?->isAdmin()
+            ? Branch::resolveDefaultId()
+            : (int) ($user?->branch_id ?? Branch::resolveDefaultId());
 
         $invoice = Invoice::create([
+            'branch_id' => $branchId,
             'invoice_no' => $this->nextInvoiceNumber(),
             'customer' => $validated['customer'],
             'shipment_ref' => $validated['shipment_ref'] ?? null,

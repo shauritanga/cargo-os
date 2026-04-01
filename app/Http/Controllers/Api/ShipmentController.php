@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\CompanySettings;
 use App\Models\Shipment;
 use App\Services\ShipmentLifecycleService;
@@ -66,7 +67,12 @@ class ShipmentController extends Controller
 
         $shipment = DB::transaction(function () use ($validated, $request) {
             $awbNumber = CompanySettings::nextAwbNumber();
+            $user = $request->user();
+            $branchId = $user?->isAdmin()
+                ? Branch::resolveDefaultId()
+                : (int) ($user?->branch_id ?? Branch::resolveDefaultId());
             $shipment = Shipment::create(array_merge($validated, [
+                'branch_id' => $branchId,
                 'awb_number' => $awbNumber,
                 'status'     => 'pending',
             ]));

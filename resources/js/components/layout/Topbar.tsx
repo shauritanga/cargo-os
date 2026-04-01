@@ -22,6 +22,7 @@ const PAGE_TITLES: Record<string, string> = {
     reports: "Reports",
     settings: "Settings",
     "access-control": "Access Control",
+    branches: "Branches",
     "audit-logs": "Audit Logs",
     placeholder: "Coming Soon",
 };

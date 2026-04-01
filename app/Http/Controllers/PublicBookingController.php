@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\Booking;
 use App\Models\Country;
 use Illuminate\Http\JsonResponse;
@@ -77,6 +78,7 @@ class PublicBookingController extends Controller
         }
 
         Booking::create([
+            'branch_id' => Branch::resolveDefaultId(),
             'customer' => $validated['company_name'],
             'origin' => $validated['origin'],
             'dest' => $validated['dest'],

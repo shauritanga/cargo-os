@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToBranch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ShipmentStatusEvent extends Model
 {
+    use BelongsToBranch;
+
     protected $fillable = [
+        'branch_id',
         'shipment_id',
         'previous_status',
         'new_status',

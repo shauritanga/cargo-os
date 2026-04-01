@@ -2,6 +2,7 @@ import type {
     AuditLog,
     AuthUser,
     BillingInvoice,
+    Branch,
     Booking,
     BookingStatus,
     Customer,
@@ -116,6 +117,10 @@ function mapAuthUser(raw: Record<string, any>): AuthUser {
         name: String(raw.name),
         email: String(raw.email),
         isActive: Boolean(raw.is_active),
+        branch:
+            raw.branch && typeof raw.branch === "object"
+                ? mapBranch(raw.branch as Record<string, any>)
+                : null,
         roles: (raw.roles ?? []).map(mapRole),
         directPermissions: (raw.direct_permissions ?? []).map(mapPermission),
         effectivePermissions: (raw.effective_permissions ?? []).map(
@@ -130,11 +135,26 @@ function mapManagedUser(raw: Record<string, any>): ManagedUser {
         name: String(raw.name),
         email: String(raw.email),
         isActive: Boolean(raw.is_active),
+        branch:
+            raw.branch && typeof raw.branch === "object"
+                ? mapBranch(raw.branch as Record<string, any>)
+                : null,
         roles: (raw.roles ?? []).map(mapRole),
         directPermissions: (raw.direct_permissions ?? []).map(mapPermission),
         effectivePermissions: (raw.effective_permissions ?? []).map(
             (p: unknown) => String(p),
         ),
+    };
+}
+
+function mapBranch(raw: Record<string, any>): Branch {
+    return {
+        id: String(raw.id),
+        name: String(raw.name),
+        code: String(raw.code),
+        isActive: Boolean(raw.is_active),
+        createdAt: raw.created_at ? String(raw.created_at) : null,
+        updatedAt: raw.updated_at ? String(raw.updated_at) : null,
     };
 }
 
@@ -917,8 +937,16 @@ export async function deletePermission(id: string): Promise<void> {
     await apiJson<void>(`/api/permissions/${id}`, { method: "DELETE" });
 }
 
-export async function fetchManagedUsers(): Promise<ManagedUser[]> {
-    const payload = await apiJson<any>("/api/users?per_page=500");
+export async function fetchManagedUsers(input?: {
+    branchId?: string;
+}): Promise<ManagedUser[]> {
+    const params = new URLSearchParams();
+    params.set("per_page", "500");
+    if (input?.branchId) {
+        params.set("branch_id", input.branchId);
+    }
+    const query = params.toString();
+    const payload = await apiJson<any>(`/api/users?${query}`);
     return (payload.data ?? payload).map(mapManagedUser);
 }
 
@@ -927,6 +955,7 @@ export async function createManagedUser(input: {
     email: string;
     password: string;
     isActive?: boolean;
+    branchId?: string;
 }): Promise<ManagedUser> {
     const user = await apiJson<any>("/api/users", {
         method: "POST",
@@ -935,6 +964,7 @@ export async function createManagedUser(input: {
             email: input.email,
             password: input.password,
             is_active: input.isActive ?? true,
+            branch_id: input.branchId ? Number(input.branchId) : undefined,
         }),
     });
 
@@ -948,6 +978,7 @@ export async function updateManagedUser(
         email: string;
         password?: string;
         isActive?: boolean;
+        branchId?: string;
     },
 ): Promise<ManagedUser> {
     const user = await apiJson<any>(`/api/users/${id}`, {
@@ -957,7 +988,20 @@ export async function updateManagedUser(
             email: input.email,
             password: input.password,
             is_active: input.isActive,
+            branch_id: input.branchId ? Number(input.branchId) : undefined,
         }),
+    });
+
+    return mapManagedUser(user);
+}
+
+export async function assignBranchToUser(
+    userId: string,
+    branchId: string,
+): Promise<ManagedUser> {
+    const user = await apiJson<any>(`/api/users/${userId}/branch`, {
+        method: "PATCH",
+        body: JSON.stringify({ branch_id: Number(branchId) }),
     });
 
     return mapManagedUser(user);
@@ -1019,4 +1063,46 @@ export async function fetchAuditLogs(input?: {
         lastPage: Number(payload.last_page ?? 1),
         total: Number(payload.total ?? 0),
     };
+}
+
+export async function fetchBranches(): Promise<Branch[]> {
+    const payload = await apiJson<any>("/api/branches?per_page=500");
+    return (payload.data ?? payload).map(mapBranch);
+}
+
+export async function createBranch(input: {
+    name: string;
+    code: string;
+    isActive?: boolean;
+}): Promise<Branch> {
+    const branch = await apiJson<any>("/api/branches", {
+        method: "POST",
+        body: JSON.stringify({
+            name: input.name,
+            code: input.code,
+            is_active: input.isActive ?? true,
+        }),
+    });
+
+    return mapBranch(branch);
+}
+
+export async function updateBranch(
+    id: string,
+    input: { name: string; code: string; isActive: boolean },
+): Promise<Branch> {
+    const branch = await apiJson<any>(`/api/branches/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+            name: input.name,
+            code: input.code,
+            is_active: input.isActive,
+        }),
+    });
+
+    return mapBranch(branch);
+}
+
+export async function deleteBranch(id: string): Promise<void> {
+    await apiJson<void>(`/api/branches/${id}`, { method: "DELETE" });
 }

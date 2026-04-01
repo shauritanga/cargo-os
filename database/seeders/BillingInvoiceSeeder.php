@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Invoice;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +10,8 @@ class BillingInvoiceSeeder extends Seeder
 {
     public function run(): void
     {
+        $branchId = Branch::resolveDefaultId();
+
         if (Invoice::query()->exists()) {
             return;
         }
@@ -29,6 +32,7 @@ class BillingInvoiceSeeder extends Seeder
                 ],
                 'amount' => 29500000,
                 'notes' => null,
+                'branch_id' => $branchId,
             ],
             [
                 'invoice_no' => 'INV-2026-0002',
@@ -44,6 +48,7 @@ class BillingInvoiceSeeder extends Seeder
                 ],
                 'amount' => 21700000,
                 'notes' => 'Awaiting payment confirmation.',
+                'branch_id' => $branchId,
             ],
             [
                 'invoice_no' => 'INV-2026-0003',
@@ -59,6 +64,7 @@ class BillingInvoiceSeeder extends Seeder
                 ],
                 'amount' => 8500000,
                 'notes' => 'Client follow-up in progress.',
+                'branch_id' => $branchId,
             ],
             [
                 'invoice_no' => 'INV-2026-0004',
@@ -74,6 +80,7 @@ class BillingInvoiceSeeder extends Seeder
                 ],
                 'amount' => 34700000,
                 'notes' => 'Draft under review.',
+                'branch_id' => $branchId,
             ],
         ];
 

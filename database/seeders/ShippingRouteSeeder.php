@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\ShippingRoute;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +10,8 @@ class ShippingRouteSeeder extends Seeder
 {
     public function run(): void
     {
+        $branchId = Branch::resolveDefaultId();
+
         if (ShippingRoute::query()->exists()) {
             return;
         }
@@ -26,6 +29,7 @@ class ShippingRouteSeeder extends Seeder
                 'shipments' => 18,
                 'freq' => 'Daily',
                 'carrier' => 'RT Ground',
+                'branch_id' => $branchId,
             ],
             [
                 'origin' => 'Dar es Salaam',
@@ -39,6 +43,7 @@ class ShippingRouteSeeder extends Seeder
                 'shipments' => 9,
                 'freq' => 'Weekly',
                 'carrier' => 'Maersk',
+                'branch_id' => $branchId,
             ],
             [
                 'origin' => 'Nairobi',
@@ -52,6 +57,7 @@ class ShippingRouteSeeder extends Seeder
                 'shipments' => 14,
                 'freq' => 'Bi-Weekly',
                 'carrier' => 'Kenya Airways Cargo',
+                'branch_id' => $branchId,
             ],
             [
                 'origin' => 'Mwanza',
@@ -65,6 +71,7 @@ class ShippingRouteSeeder extends Seeder
                 'shipments' => 0,
                 'freq' => 'Weekly',
                 'carrier' => 'RT Ground',
+                'branch_id' => $branchId,
             ],
         ];
 

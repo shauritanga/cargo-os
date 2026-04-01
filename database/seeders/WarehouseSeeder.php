@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\Warehouse;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +10,8 @@ class WarehouseSeeder extends Seeder
 {
     public function run(): void
     {
+        $branchId = Branch::resolveDefaultId();
+
         if (Warehouse::query()->exists()) {
             return;
         }
@@ -28,6 +31,7 @@ class WarehouseSeeder extends Seeder
                 'email' => 'dar.hub@rtexpress.co.tz',
                 'address' => 'Nyerere Rd, Industrial Area',
                 'notes' => 'Primary distribution facility.',
+                'branch_id' => $branchId,
             ],
             [
                 'name' => 'Mwanza Cold Depot',
@@ -43,6 +47,7 @@ class WarehouseSeeder extends Seeder
                 'email' => 'mwanza.cold@rtexpress.co.tz',
                 'address' => 'Airport Rd, Mwanza',
                 'notes' => 'Temperature monitored 24/7.',
+                'branch_id' => $branchId,
             ],
             [
                 'name' => 'Arusha Bonded Store',
@@ -58,6 +63,7 @@ class WarehouseSeeder extends Seeder
                 'email' => 'arusha.bonded@rtexpress.co.tz',
                 'address' => 'Namanga Rd, Arusha',
                 'notes' => 'Maintenance window this week.',
+                'branch_id' => $branchId,
             ],
         ];
 

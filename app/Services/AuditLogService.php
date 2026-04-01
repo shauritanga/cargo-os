@@ -67,7 +67,14 @@ class AuditLogService
         ?int $userId
     ): void {
         try {
+            $branchId = $request->user()?->branch_id;
+
+            if ($branchId === null && ($request->route('branch')?->id ?? null) !== null) {
+                $branchId = (int) $request->route('branch')->id;
+            }
+
             AuditLog::query()->create([
+                'branch_id' => $branchId,
                 'user_id' => $userId,
                 'action' => Str::limit($action, 150, ''),
                 'http_method' => Str::upper($request->method()),

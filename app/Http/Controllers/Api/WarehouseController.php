@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -53,8 +54,13 @@ class WarehouseController extends Controller
             'address' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:3000',
         ]);
+        $user = $request->user();
+        $branchId = $user?->isAdmin()
+            ? Branch::resolveDefaultId()
+            : (int) ($user?->branch_id ?? Branch::resolveDefaultId());
 
         $warehouse = Warehouse::create(array_merge([
+            'branch_id' => $branchId,
             'country' => 'TZ',
             'type' => 'General',
             'capacity_sqm' => 0,

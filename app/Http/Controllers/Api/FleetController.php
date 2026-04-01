@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\FleetVehicle;
 use App\Models\ShippingRoute;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class FleetController extends Controller
 {
@@ -58,8 +60,13 @@ class FleetController extends Controller
         ]);
 
         $validated = $this->resolveRouteLink($validated);
+        $user = $request->user();
+        $branchId = $user?->isAdmin()
+            ? Branch::resolveDefaultId()
+            : (int) ($user?->branch_id ?? Branch::resolveDefaultId());
 
         $vehicle = FleetVehicle::create(array_merge([
+            'branch_id' => $branchId,
             'status' => 'idle',
         ], $validated));
 
@@ -133,6 +140,10 @@ class FleetController extends Controller
             if ($route) {
                 $attributes['route_id'] = $route->id;
                 $attributes['current_route'] = trim($route->origin) . ' -> ' . trim($route->dest);
+            } else {
+                throw ValidationException::withMessages([
+                    'route_id' => ['Selected route is not available in your branch.'],
+                ]);
             }
 
             return $attributes;

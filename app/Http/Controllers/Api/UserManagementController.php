@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
+use App\Models\Branch;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -18,9 +19,16 @@ class UserManagementController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = max(1, min((int) $request->query('per_page', 50), 200));
+        $validated = $request->validate([
+            'branch_id' => 'sometimes|integer|exists:branches,id',
+        ]);
 
         $users = User::query()
-            ->with(['roles', 'directPermissions'])
+            ->with(['roles', 'directPermissions', 'branch'])
+            ->when(
+                array_key_exists('branch_id', $validated),
+                fn($q) => $q->where('branch_id', (int) $validated['branch_id'])
+            )
             ->orderBy('name')
             ->paginate($perPage);
 
@@ -40,16 +48,23 @@ class UserManagementController extends Controller
                 Password::min(12)->mixedCase()->letters()->numbers()->symbols()->uncompromised(),
             ],
             'is_active' => 'sometimes|boolean',
+            'branch_id' => 'sometimes|integer|exists:branches,id',
         ]);
+
+        $branchId = array_key_exists('branch_id', $validated)
+            ? (int) $validated['branch_id']
+            : Branch::resolveDefaultId();
+        $this->ensureBranchIsActive($branchId);
 
         $user = User::query()->create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'is_active' => (bool) ($validated['is_active'] ?? true),
+            'branch_id' => $branchId,
         ]);
 
-        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions'])), 201);
+        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions', 'branch'])), 201);
     }
 
     public function update(Request $request, User $user): JsonResponse
@@ -68,6 +83,7 @@ class UserManagementController extends Controller
                 Password::min(12)->mixedCase()->letters()->numbers()->symbols()->uncompromised(),
             ],
             'is_active' => 'sometimes|boolean',
+            'branch_id' => 'sometimes|integer|exists:branches,id',
         ]);
 
         $user->name = $validated['name'];
@@ -85,9 +101,15 @@ class UserManagementController extends Controller
             $user->password = Hash::make($validated['password']);
         }
 
+        if (array_key_exists('branch_id', $validated)) {
+            $branchId = (int) $validated['branch_id'];
+            $this->ensureBranchIsActive($branchId);
+            $user->branch_id = $branchId;
+        }
+
         $user->save();
 
-        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions'])));
+        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions', 'branch'])));
     }
 
     public function assignRoles(Request $request, User $user): JsonResponse
@@ -112,7 +134,21 @@ class UserManagementController extends Controller
 
         $user->roles()->sync($roleIds);
 
-        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions'])));
+        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions', 'branch'])));
+    }
+
+    public function assignBranch(Request $request, User $user): JsonResponse
+    {
+        $validated = $request->validate([
+            'branch_id' => 'required|integer|exists:branches,id',
+        ]);
+
+        $branchId = (int) $validated['branch_id'];
+        $this->ensureBranchIsActive($branchId);
+        $user->branch_id = $branchId;
+        $user->save();
+
+        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions', 'branch'])));
     }
 
     public function assignDirectPermissions(Request $request, User $user): JsonResponse
@@ -129,7 +165,7 @@ class UserManagementController extends Controller
 
         $user->directPermissions()->sync($permissionIds);
 
-        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions'])));
+        return response()->json($this->serializeUser($user->fresh(['roles', 'directPermissions', 'branch'])));
     }
 
     private function ensureNotLastActiveAdmin(User $targetUser): void
@@ -166,6 +202,12 @@ class UserManagementController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'is_active' => $user->is_active,
+            'branch' => $user->branch ? [
+                'id' => $user->branch->id,
+                'name' => $user->branch->name,
+                'code' => $user->branch->code,
+                'is_active' => $user->branch->is_active,
+            ] : null,
             'roles' => $user->roles->map(fn($role) => [
                 'id' => $role->id,
                 'name' => $role->name,
@@ -180,5 +222,16 @@ class UserManagementController extends Controller
             ])->values()->all(),
             'effective_permissions' => $user->permissions()->pluck('key')->values()->all(),
         ];
+    }
+
+    private function ensureBranchIsActive(int $branchId): void
+    {
+        $branch = Branch::query()->findOrFail($branchId);
+
+        if (! $branch->is_active) {
+            throw ValidationException::withMessages([
+                'branch_id' => ['User can only be assigned to an active branch.'],
+            ]);
+        }
     }
 }

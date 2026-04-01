@@ -138,6 +138,7 @@ class BookingController extends Controller
             $awbNumber = CompanySettings::nextAwbNumber();
 
             $shipment = Shipment::create([
+                'branch_id' => $booking->branch_id,
                 'awb_number' => $awbNumber,
                 'type' => 'domestic',
                 'origin' => $booking->origin,

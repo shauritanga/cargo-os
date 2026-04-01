@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\AuditLogController;
+use App\Http\Controllers\Api\BranchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -118,11 +119,13 @@ Route::middleware(['web', 'auth', 'audit'])->group(function () {
         Route::post('roles/{role}/permissions', [RoleController::class, 'assignPermissions']);
 
         Route::apiResource('permissions', PermissionController::class)->except(['create', 'edit', 'show']);
+        Route::apiResource('branches', BranchController::class)->except(['create', 'edit']);
 
         Route::get('users', [UserManagementController::class, 'index']);
         Route::post('users', [UserManagementController::class, 'store']);
         Route::put('users/{user}', [UserManagementController::class, 'update']);
         Route::patch('users/{user}', [UserManagementController::class, 'update']);
+        Route::patch('users/{user}/branch', [UserManagementController::class, 'assignBranch']);
         Route::post('users/{user}/roles', [UserManagementController::class, 'assignRoles']);
         Route::post('users/{user}/permissions', [UserManagementController::class, 'assignDirectPermissions']);
 

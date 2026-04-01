@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Branch;
 use App\Models\FleetVehicle;
 use App\Models\ShippingRoute;
 use Illuminate\Http\Request;
@@ -57,8 +58,13 @@ class RouteController extends Controller
             'freq' => 'nullable|string|max:100',
             'carrier' => 'nullable|string|max:255',
         ]);
+        $user = $request->user();
+        $branchId = $user?->isAdmin()
+            ? Branch::resolveDefaultId()
+            : (int) ($user?->branch_id ?? Branch::resolveDefaultId());
 
         $route = ShippingRoute::create(array_merge([
+            'branch_id' => $branchId,
             'status' => 'active',
             'avg_days' => 0,
             'shipments' => 0,

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Branch;
 use App\Models\FleetVehicle;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +10,8 @@ class FleetVehicleSeeder extends Seeder
 {
     public function run(): void
     {
+        $branchId = Branch::resolveDefaultId();
+
         if (FleetVehicle::query()->exists()) {
             return;
         }
@@ -28,6 +31,7 @@ class FleetVehicleSeeder extends Seeder
                 'year' => 2021,
                 'status' => 'active',
                 'base' => 'Dar es Salaam',
+                'branch_id' => $branchId,
             ],
             [
                 'type' => 'Ship',
@@ -43,6 +47,7 @@ class FleetVehicleSeeder extends Seeder
                 'year' => 2017,
                 'status' => 'active',
                 'base' => 'Dar es Salaam Port',
+                'branch_id' => $branchId,
             ],
             [
                 'type' => 'Aircraft',
@@ -58,6 +63,7 @@ class FleetVehicleSeeder extends Seeder
                 'year' => 2019,
                 'status' => 'idle',
                 'base' => 'Nairobi',
+                'branch_id' => $branchId,
             ],
             [
                 'type' => 'Rail',
@@ -73,6 +79,7 @@ class FleetVehicleSeeder extends Seeder
                 'year' => 2015,
                 'status' => 'maintenance',
                 'base' => 'Dar es Salaam',
+                'branch_id' => $branchId,
             ],
         ];
 
